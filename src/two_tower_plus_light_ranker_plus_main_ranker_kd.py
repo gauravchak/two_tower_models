@@ -8,6 +8,8 @@ from src.two_tower_plus_light_ranker import TwoTowerPlusLightRanker
 class TwoTowerPlusLightRankerWithKD(TwoTowerPlusLightRanker):
     def __init__(
         self,
+        num_items: int,
+        num_knn_items: int,
         user_id_hash_size: int,
         user_id_embedding_dim: int,
         user_features_size: int,
@@ -19,6 +21,8 @@ class TwoTowerPlusLightRankerWithKD(TwoTowerPlusLightRanker):
     ) -> None:
         """
         params:
+            num_items: the number of items to return per user/query
+            num_knn_items: the number of items to retrieve using the knn module
             user_id_hash_size: the size of the embedding table for users
             user_id_embedding_dim (DU): internal dimension
             user_features_size (IU): input feature size for users
@@ -32,6 +36,8 @@ class TwoTowerPlusLightRankerWithKD(TwoTowerPlusLightRanker):
                 over the item embeddings given the user embedding.
         """
         super().__init__(
+            num_items,
+            num_knn_items,
             user_id_hash_size,
             user_id_embedding_dim,
             user_features_size,
@@ -45,9 +51,6 @@ class TwoTowerPlusLightRankerWithKD(TwoTowerPlusLightRanker):
         self,
         user_id: torch.Tensor,  # [B]
         user_features: torch.Tensor,  # [B, IU]
-        item_id: torch.Tensor,  # [B]
-        item_features: torch.Tensor,  # [B, II]
-        position: torch.Tensor,  # [B]
     ) -> torch.Tensor:
         """
         """

@@ -8,6 +8,8 @@ from src.two_tower_base_retrieval import TwoTowerBaseRetrieval
 class TwoTowerPlusLightRanker(TwoTowerBaseRetrieval):
     def __init__(
         self,
+        num_items: int,
+        num_knn_items: int,
         user_id_hash_size: int,
         user_id_embedding_dim: int,
         user_features_size: int,
@@ -19,6 +21,8 @@ class TwoTowerPlusLightRanker(TwoTowerBaseRetrieval):
     ) -> None:
         """
         params:
+            num_items: the number of items to return per user/query
+            num_knn_items: the number of items to retrieve using the knn module
             user_id_hash_size: the size of the embedding table for users
             user_id_embedding_dim (DU): internal dimension
             user_features_size (IU): input feature size for users
@@ -32,6 +36,7 @@ class TwoTowerPlusLightRanker(TwoTowerBaseRetrieval):
                 over the item embeddings given the user embedding.
         """
         super().__init__(
+            num_items,
             user_id_hash_size,
             user_id_embedding_dim,
             user_features_size,
@@ -40,16 +45,20 @@ class TwoTowerPlusLightRanker(TwoTowerBaseRetrieval):
             item_features_size,
             user_value_weights,
         )
+        self.num_knn_items = num_knn_items
 
     def forward(
         self,
         user_id: torch.Tensor,  # [B]
         user_features: torch.Tensor,  # [B, IU]
-        item_id: torch.Tensor,  # [B]
-        item_features: torch.Tensor,  # [B, II]
-        position: torch.Tensor,  # [B]
     ) -> torch.Tensor:
         """
+        1. Compute the knn and ranking user embeddings
+        2. Get num_knn_items items using the knn user embedding and KNN module.
+        3. Compute the item embeddings for the top num_items items.
+        4. Compute the item scores using ranking user embedding.
+        5. Compute a composite score using the item scores and user_value_weights.
+        6. Return the top num_items items using the composite score.
         """
         pass
 

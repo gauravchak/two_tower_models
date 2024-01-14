@@ -15,6 +15,7 @@ class TwoTowerWithMainRankerReward(TwoTowerBaseRetrieval):
     """
     def __init__(
         self,
+        num_items: int,
         user_id_hash_size: int,
         user_id_embedding_dim: int,
         user_features_size: int,
@@ -26,6 +27,7 @@ class TwoTowerWithMainRankerReward(TwoTowerBaseRetrieval):
     ) -> None:
         """
         params:
+            num_items: the number of items to return per user/query
             user_id_hash_size: the size of the embedding table for users
             user_id_embedding_dim (DU): internal dimension
             user_features_size (IU): input feature size for users
@@ -39,6 +41,7 @@ class TwoTowerWithMainRankerReward(TwoTowerBaseRetrieval):
                 over the item embeddings given the user embedding.
         """
         super().__init__(
+            num_items,
             user_id_hash_size,
             user_id_embedding_dim,
             user_features_size,
@@ -52,11 +55,9 @@ class TwoTowerWithMainRankerReward(TwoTowerBaseRetrieval):
         self,
         user_id: torch.Tensor,  # [B]
         user_features: torch.Tensor,  # [B, IU]
-        item_id: torch.Tensor,  # [B]
-        item_features: torch.Tensor,  # [B, II]
-        position: torch.Tensor,  # [B]
     ) -> torch.Tensor:
         """
+        Computes a user embedding, uses the knn module to get the top K items.
         """
         pass
 
@@ -70,5 +71,7 @@ class TwoTowerWithMainRankerReward(TwoTowerBaseRetrieval):
         labels: torch.Tensor  # [B, T]
     ) -> torch.Tensor:
         """
+        Called during training.
+        Computes the loss.
         """
         pass

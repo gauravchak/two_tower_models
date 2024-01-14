@@ -13,6 +13,7 @@ import torch.nn.functional as F
 class TwoTowerBaseRetrieval(nn.Module):
     def __init__(
         self,
+        num_items: int,
         user_id_hash_size: int,
         user_id_embedding_dim: int,
         user_features_size: int,
@@ -24,7 +25,7 @@ class TwoTowerBaseRetrieval(nn.Module):
     ) -> None:
         """
         params:
-            num_tasks (T): The tasks to compute estimates of
+            num_items: the number of items to return per user/query
             user_id_hash_size: the size of the embedding table for users
             user_id_embedding_dim (DU): internal dimension
             user_features_size (IU): input feature size for users
@@ -39,6 +40,7 @@ class TwoTowerBaseRetrieval(nn.Module):
                 over the item embeddings given the user embedding.
         """
         super().__init__()
+        self.num_items = num_items
         self.user_value_weights = torch.tensor(user_value_weights)  # noqa TODO add device input.
 
         # Embedding layers for user and item ids
@@ -51,11 +53,9 @@ class TwoTowerBaseRetrieval(nn.Module):
         self,
         user_id: torch.Tensor,  # [B]
         user_features: torch.Tensor,  # [B, IU]
-        item_id: torch.Tensor,  # [B]
-        item_features: torch.Tensor,  # [B, II]
-        position: torch.Tensor,  # [B]
     ) -> torch.Tensor:
         """
+        Compute the user embedding and return the top num_items items using the KNN module.
         """
         pass
 
