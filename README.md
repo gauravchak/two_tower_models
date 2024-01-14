@@ -1,4 +1,5 @@
 # two_tower_models
+
 This is companion repository to [two tower models](https://recsysml.substack.com/p/two-tower-models-for-retrieval-of), a commonly used approach to retrieval / candidate generation in recommender systems. The goal of this repository is to show how to increase the alignment of retrieval with ranking.
 
 ## [two_tower_base_retrieval.py](./src/two_tower_base_retrieval.py)
@@ -16,3 +17,7 @@ Then we extend this to adding knowledge distillation from ranking models. This i
 ## [two_tower_base_plus_main_ranker_reward_model.py](./src/two_tower_base_plus_main_ranker_reward_model.py)
 
 In this step we add a further layer of funnel consistency where, inspired by [RLHF](https://arxiv.org/abs/1909.08593), we use the ranking model as a "reward model" and learn how to make the retrieval more aligned with the ranking model.
+
+------
+
+_Disclaimer:_ These are the personal creations/opinions of the author(s). Any artifacts, opinions stated here are theirs and not representative of their current or prior employer(s). Apart from publicly available information, any other information here is not claimed to refer to any company including ones the author(s) may have worked in or been associated with.
