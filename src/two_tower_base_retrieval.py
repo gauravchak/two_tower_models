@@ -20,6 +20,7 @@ class TwoTowerBaseRetrieval(nn.Module):
         item_id_embedding_dim: int,
         item_features_size: int,
         user_value_weights: List[float],
+        knn_module: nn.Module,
     ) -> None:
         """
         params:
@@ -32,8 +33,10 @@ class TwoTowerBaseRetrieval(nn.Module):
             item_features_size: (II) input feature size for items
             cross_features_size: (IC) size of cross features
             user_value_weights: T dimensional weights, such that a linear
-            combination of point-wise immediate rewards is the best predictor
-            of long term user satisfaction.
+                combination of point-wise immediate rewards is the best predictor
+                of long term user satisfaction.
+            knn_module: a module that computes the Maximum Inner Product Search (MIPS)
+                over the item embeddings given the user embedding.
         """
         super().__init__()
         self.user_value_weights = torch.tensor(user_value_weights)  # noqa TODO add device input.
