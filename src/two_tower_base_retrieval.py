@@ -213,7 +213,7 @@ class TwoTowerBaseRetrieval(nn.Module):
         user_history: torch.Tensor,  # [B, H]
     ) -> torch.Tensor:
         """
-        and return the top num_items items using the KNN module
+        Compute the user embedding and return the top num_items items using the KNN module
         """
         # Compute the user embedding
         user_embedding = self.compute_user_embedding(
@@ -233,7 +233,12 @@ class TwoTowerBaseRetrieval(nn.Module):
         position: torch.Tensor,  # [B]
         labels: torch.Tensor  # [B, T]
     ) -> float:
-        """Compute the loss during training"""
+        """Compute the loss during training
+
+        We are computing a softmax loss and weighting it by the net_user_value.
+        Optionally we are debiasing the net_user_value by the part explained purely by position.
+        To do this we are computing a MSE loss between the net_user_value and position_bias.
+        """
         # Compute the user embedding
         user_embedding = self.compute_user_embedding(
             user_id, user_features, user_history
@@ -252,7 +257,11 @@ class TwoTowerBaseRetrieval(nn.Module):
         # Here we are not implementing either due to time constraints.
 
         # Compute softmax loss
-        target = torch.arange(scores.shape[0]).to(scores.device)
+        target = torch.arange(scores.shape[0]).to(scores.device)  # [B]
+        # We are not reducing to mean since not every row in the batch is a 
+        # "positive" example. We are weighting the loss by the net_user_value
+        # after this to give more weight to the positive examples and possibly
+        # 0 weight to the hard-negative examples.
         loss = F.cross_entropy(
             input=scores,
             target=target,
