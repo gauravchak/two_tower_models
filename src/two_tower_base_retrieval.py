@@ -103,6 +103,7 @@ class TwoTowerBaseRetrieval(nn.Module):
         item_features_size: int,
         user_value_weights: List[float],
         knn_module: nn.Module,
+        enable_position_debiasing: bool = False,
     ) -> None:
         """
         params:
@@ -119,10 +120,14 @@ class TwoTowerBaseRetrieval(nn.Module):
                 of long term user satisfaction.
             knn_module: a module that computes the Maximum Inner Product Search (MIPS)
                 over the item embeddings given the user embedding.
+            enable_position_debiasing: when enabled, we will debias the net_user_value
+                by the part explained purely by position.
         """
         super().__init__()
         self.num_items = num_items
         self.user_value_weights = torch.tensor(user_value_weights)  # noqa TODO add device input.
+        self.knn_module = knn_module
+        self.enable_position_debiasing = enable_position_debiasing
 
         # Embedding layers for user and item ids
         self.user_id_embedding_arch = nn.Embedding(
@@ -141,6 +146,12 @@ class TwoTowerBaseRetrieval(nn.Module):
         # Create an arch to process the item_tower_input
         self.item_tower_arch = nn.Linear(
             item_id_embedding_dim, item_id_embedding_dim)
+        if self.enable_position_debiasing:
+            # Create an embedding arch to process position
+            self.position_bias_net_user_value = nn.Embedding(
+                num_embeddings=100,
+                embedding_dim=1
+            )
 
     def compute_user_embedding(
         self,
@@ -235,16 +246,46 @@ class TwoTowerBaseRetrieval(nn.Module):
         scores = torch.matmul(user_embedding, item_embeddings.t())
 
         # You should either try to handle the popularity bias 
-        # of in batch negatives using log-Q correction or
-        # use random negatives.
-        # Here we are skipping this part.
+        # of in-batch negatives using log-Q correction or
+        # use random negatives. Mixed Negative Sampling paper suggests
+        # random negatives is a better approach.
+        # Here we are not implementing either due to time constraints.
 
         # Compute softmax loss
         target = torch.arange(scores.shape[0]).to(scores.device)
         loss = F.cross_entropy(
             input=scores,
             target=target,
-            reduction="mean"
-        )
+            reduction="none"
+        )  # [B]
+
+        # Compute the weighted average of the labels using user_value_weights
+        net_user_value = torch.matmul(labels, self.user_value_weights)  # [B]
+
+        # Optionally debias the net_user_value by the part explained purely by position
+        if self.enable_position_debiasing:
+            # Compute the position bias
+            position_bias = self.position_bias_net_user_value(position).squeeze(1)  # [B]
+            # Compute MSE loss between net_user_value and position_bias
+            position_bias_loss = F.mse_loss(
+                input=net_user_value,
+                target=position_bias,
+                reduction="mean"
+            )  # [1]
+            # Compute the net_user_value without position bias
+            net_user_value = net_user_value - position_bias
+
+        # Clamp to only preserve positive net_user_value and
+        # normalize net_user_value by the max value of it in batch.
+        # This is to ensure that the net_user_value is between 0 and 1.
+        net_user_value = torch.clamp(net_user_value, min=0) / torch.max(net_user_value)  # [B]
+
+        # Compute the product of loss and net_user_value
+        loss = loss * net_user_value  # [B]
+        loss = torch.mean(loss)  # [1]
+        # Optionally add the position bias loss to the loss
+        if self.enable_position_debiasing:
+            loss = loss + position_bias_loss
+
         return loss
 
