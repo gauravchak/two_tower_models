@@ -285,14 +285,14 @@ class TwoTowerBaseRetrieval(nn.Module):
             net_user_value, position
         )  # [B], [1]
 
-        # Clamp to only preserve positive net_user_value and
-        # normalize net_user_value by the max value of it in batch.
-        # This is to ensure that the net_user_value is between 0 and 1.
-        # This is not strictly necessary, but it makes it easier to interpret 
-        # the loss.
+        # Floor by epsilon to only preserve positive net_user_value 
         net_user_value = torch.clamp(
-            net_user_value, min=0
-        ) / torch.max(net_user_value)  # [B]
+            net_user_value,
+            min=0.000001  # small epsilon to avoid divide by 0
+        )  # [B]
+        # Normalize net_user_value by the max value of it in batch.
+        # This is to ensure that the net_user_value is between 0 and 1.
+        net_user_value = net_user_value / torch.max(net_user_value)  # [B]
 
         # Compute the product of loss and net_user_value
         loss = loss * net_user_value  # [B]
