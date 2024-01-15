@@ -2,6 +2,9 @@
 
 This is companion repository to [two tower models](https://recsysml.substack.com/p/two-tower-models-for-retrieval-of), a commonly used approach to retrieval / candidate generation in recommender systems. The goal of this repository is to show how to increase the alignment of retrieval with ranking.
 
+![two_tower_schematic](./images/two_tower_schematic.png)
+
+
 ## [two_tower_base_retrieval.py](./src/two_tower_base_retrieval.py)
 
 This shows a sample implementation of two tower models in PyTorch.
