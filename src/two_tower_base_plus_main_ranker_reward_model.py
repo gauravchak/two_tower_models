@@ -1,11 +1,15 @@
+"""
+TODO
+"""
 from typing import List
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
 
-from src.two_tower_base_retrieval import TwoTowerBaseRetrieval
+from src.two_tower_with_position_debiased_weights import TwoTowerWithPositionDebiasedWeights
 
-class TwoTowerWithMainRankerReward(TwoTowerBaseRetrieval):
+
+class TwoTowerWithMainRankerReward(TwoTowerWithPositionDebiasedWeights):
     """
         Build a proxy of the main ranking estimator model here.
         While training use that proxy to compute the reward for both positives
@@ -19,18 +23,21 @@ class TwoTowerWithMainRankerReward(TwoTowerBaseRetrieval):
         user_id_hash_size: int,
         user_id_embedding_dim: int,
         user_features_size: int,
+        user_history_seqlen: int,
         item_id_hash_size: int,
         item_id_embedding_dim: int,
         item_features_size: int,
         user_value_weights: List[float],
         knn_module: nn.Module,
+        enable_position_debiasing: bool = False,
     ) -> None:
         """
-        params:
+        Args:
             num_items: the number of items to return per user/query
             user_id_hash_size: the size of the embedding table for users
             user_id_embedding_dim (DU): internal dimension
             user_features_size (IU): input feature size for users
+            user_history_seqlen (H): length of the user history sequence
             item_id_hash_size: the size of the embedding table for items
             item_id_embedding_dim (DI): internal dimension
             item_features_size: (II) input feature size for items
@@ -39,39 +46,20 @@ class TwoTowerWithMainRankerReward(TwoTowerBaseRetrieval):
                 of long term user satisfaction.
             knn_module: a module that computes the Maximum Inner Product Search (MIPS)
                 over the item embeddings given the user embedding.
+            enable_position_debiasing: when enabled, we will debias the net_user_value
+                by the part explained purely by position.
         """
         super().__init__(
-            num_items,
-            user_id_hash_size,
-            user_id_embedding_dim,
-            user_features_size,
-            item_id_hash_size,
-            item_id_embedding_dim,
-            item_features_size,
-            user_value_weights,
+            num_items=num_items,
+            user_id_hash_size=user_id_hash_size,
+            user_id_embedding_dim=user_id_embedding_dim,
+            user_features_size=user_features_size,
+            user_history_seqlen=user_history_seqlen,
+            item_id_hash_size=item_id_hash_size,
+            item_id_embedding_dim=item_id_embedding_dim,
+            item_features_size=item_features_size,
+            user_value_weights=user_value_weights,
+            knn_module=knn_module,
+            enable_position_debiasing=enable_position_debiasing,
         )
 
-    def forward(
-        self,
-        user_id: torch.Tensor,  # [B]
-        user_features: torch.Tensor,  # [B, IU]
-    ) -> torch.Tensor:
-        """
-        Computes a user embedding, uses the knn module to get the top K items.
-        """
-        pass
-
-    def train_forward(
-        self,
-        user_id: torch.Tensor,  # [B]
-        user_features: torch.Tensor,  # [B, IU]
-        item_id: torch.Tensor,  # [B]
-        item_features: torch.Tensor,  # [B, II]
-        position: torch.Tensor,  # [B]
-        labels: torch.Tensor  # [B, T]
-    ) -> torch.Tensor:
-        """
-        Called during training.
-        Computes the loss.
-        """
-        pass
