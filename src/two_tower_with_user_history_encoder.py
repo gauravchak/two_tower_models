@@ -46,15 +46,15 @@ class TwoTowerWithUserHistoryEncoder(TwoTowerBaseRetrieval):
                 over the item embeddings given the user embedding.
         """
         super().__init__(
-            num_items,
-            user_id_hash_size,
-            user_id_embedding_dim,
-            user_features_size,
-            item_id_hash_size,
-            item_id_embedding_dim,
-            item_features_size,
-            user_value_weights,
-            knn_module,
+            num_items=num_items,
+            user_id_hash_size=user_id_hash_size,
+            user_id_embedding_dim=user_id_embedding_dim,
+            user_features_size=user_features_size,
+            item_id_hash_size=item_id_hash_size,
+            item_id_embedding_dim=item_id_embedding_dim,
+            item_features_size=item_features_size,
+            user_value_weights=user_value_weights,
+            knn_module=knn_module,
         )
 
         num_user_history_dims = 2  # Keep in sync with user history encoder

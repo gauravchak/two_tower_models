@@ -11,7 +11,7 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as F
 
-from src.two_tower_base_retrieval import TwoTowerWithUserHistoryEncoder
+from src.two_tower_with_user_history_encoder import TwoTowerWithUserHistoryEncoder
 
 
 class TwoTowerWithPositionDebiasedWeights(TwoTowerWithUserHistoryEncoder):
@@ -28,6 +28,7 @@ class TwoTowerWithPositionDebiasedWeights(TwoTowerWithUserHistoryEncoder):
         user_id_hash_size: int,
         user_id_embedding_dim: int,
         user_features_size: int,
+        user_history_seqlen: int,
         item_id_hash_size: int,
         item_id_embedding_dim: int,
         item_features_size: int,
@@ -41,6 +42,7 @@ class TwoTowerWithPositionDebiasedWeights(TwoTowerWithUserHistoryEncoder):
             user_id_hash_size: the size of the embedding table for users
             user_id_embedding_dim (DU): internal dimension
             user_features_size (IU): input feature size for users
+            user_history_seqlen (H): length of the user history sequence
             item_id_hash_size: the size of the embedding table for items
             item_id_embedding_dim (DI): internal dimension
             item_features_size: (II) input feature size for items
@@ -53,15 +55,16 @@ class TwoTowerWithPositionDebiasedWeights(TwoTowerWithUserHistoryEncoder):
             enable_position_debiasing: when enabled, we will debias the net_user_value
         """
         super().__init__(
-            num_items,
-            user_id_hash_size,
-            user_id_embedding_dim,
-            user_features_size,
-            item_id_hash_size,
-            item_id_embedding_dim,
-            item_features_size,
-            user_value_weights,
-            knn_module,
+            num_items=num_items,
+            user_id_hash_size=user_id_hash_size,
+            user_id_embedding_dim=user_id_embedding_dim,
+            user_features_size=user_features_size,
+            user_history_seqlen=user_history_seqlen,
+            item_id_hash_size=item_id_hash_size,
+            item_id_embedding_dim=item_id_embedding_dim,
+            item_features_size=item_features_size,
+            user_value_weights=user_value_weights,
+            knn_module=knn_module,
         )
         self.enable_position_debiasing = enable_position_debiasing
         if self.enable_position_debiasing:
