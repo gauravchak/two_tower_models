@@ -31,8 +31,14 @@ class UserHistoryEncoder(nn.Module):
             seq_len = history_len,
             d_model = item_id_embedding_dim
         )
+        # Reverse the positional encodings since in the user history we 
+        # using this for, the newest item is at the beginning of the sequence.
+        self.positional_embeddings = self.positional_embeddings.flip([0])
+
         # Create the multi-head attention module
-        # Note: PyTorch's MultiheadAttention expects input size (seq_len, B, DI) so we permute the dimensions
+        # Note: PyTorch's MultiheadAttention expects input shape 
+        # (seq_len=H, batch_size=B, d_model=DI) 
+        # so we have to permute the dimensions when using this.
         self.multihead_attn = nn.MultiheadAttention(
             embed_dim=item_id_embedding_dim,
             num_heads=num_heads
@@ -58,11 +64,14 @@ class UserHistoryEncoder(nn.Module):
 
         returns [B, 2 DI] a summary of the user history
         """
-        # Add positional encodings to token embeddings
+        # Add positional encodings to history embeddings
+        # Since positional encodings are [H, DI] and history embeddings are [B, H, DI]
+        # we need to unsqueeze the positional embeddings to [1, H, DI] and add them
         user_history = user_history + self.positional_embeddings.unsqueeze(0)
 
         # Compute multi-head attention
-        # Note: PyTorch's MultiheadAttention returns attn_output and attn_output_weights, we only keep attn_output
+        # Note: PyTorch's MultiheadAttention returns attn_output and 
+        # attn_output_weights, we only keep attn_output.
         attn_output, _ = self.multihead_attn(
             query=user_history.permute(1, 0, 2),
             key=user_history.permute(1, 0, 2),
@@ -71,9 +80,11 @@ class UserHistoryEncoder(nn.Module):
 
         # Convert attn_output back to (B, H, DI) format
         attn_output = attn_output.permute(1, 0, 2)
+
+        # We will only take the first (most recent) item and the mean value
         first_item = attn_output[:, 0, :].squeeze(1)
         mean_value = torch.mean(attn_output, dim=1)
-        # Stack the first item and the mean value [B, 2 DI]
+        # Stack the first item and the mean value [B, 2, DI]
         user_history_summary = torch.stack(
             [first_item, mean_value], dim=1
         )
@@ -124,7 +135,12 @@ class TwoTowerBaseRetrieval(nn.Module):
         # Create an arch to process the user_tower_input
         self.user_tower_arch = nn.Linear(
             2 * user_id_embedding_dim + item_id_embedding_dim, user_id_embedding_dim)
-
+        # Create an arch to process the item_features
+        self.item_features_arch = nn.Linear(
+            item_features_size, item_id_embedding_dim)
+        # Create an arch to process the item_tower_input
+        self.item_tower_arch = nn.Linear(
+            item_id_embedding_dim, item_id_embedding_dim)
 
     def compute_user_embedding(
         self,
@@ -159,6 +175,26 @@ class TwoTowerBaseRetrieval(nn.Module):
         user_embedding = self.user_tower_arch(user_tower_input)  # [B, DU]
         return user_embedding
 
+    def compute_item_embeddings(
+        self,
+        item_id: torch.Tensor,  # [B]
+        item_features: torch.Tensor,  # [B, II]
+    ) -> torch.Tensor:
+        """
+        Process item_id and item_features to compute item embeddings.
+        """
+        # Process item id
+        item_id_embedding = self.item_id_embedding_arch(item_id)
+        # Process item features
+        item_features_embedding = self.item_features_arch(item_features)
+        # Concatenate the inputs and pass them through a linear layer to compute the item embedding
+        item_tower_input = torch.cat(
+            [item_id_embedding, item_features_embedding], dim=1
+        )
+        # Compute the item embedding
+        item_embedding = self.item_tower_arch(item_tower_input)
+        return item_embedding
+
     def forward(
         self,
         user_id: torch.Tensor,  # [B]
@@ -180,11 +216,35 @@ class TwoTowerBaseRetrieval(nn.Module):
         self,
         user_id: torch.Tensor,  # [B]
         user_features: torch.Tensor,  # [B, IU]
+        user_history: torch.Tensor,  # [B, H]
         item_id: torch.Tensor,  # [B]
         item_features: torch.Tensor,  # [B, II]
         position: torch.Tensor,  # [B]
         labels: torch.Tensor  # [B, T]
     ) -> float:
         """Compute the loss during training"""
-        pass
+        # Compute the user embedding
+        user_embedding = self.compute_user_embedding(
+            user_id, user_features, user_history
+        )  # [B, DU]
+        # Compute item embeddings
+        item_embeddings = self.compute_item_embeddings(
+            item_id, item_features
+        )  # [B, DI]
+        # Compute the scores for every pair of user and item
+        scores = torch.matmul(user_embedding, item_embeddings.t())
+
+        # You should either try to handle the popularity bias 
+        # of in batch negatives using log-Q correction or
+        # use random negatives.
+        # Here we are skipping this part.
+
+        # Compute softmax loss
+        target = torch.arange(scores.shape[0]).to(scores.device)
+        loss = F.cross_entropy(
+            input=scores,
+            target=target,
+            reduction="mean"
+        )
+        return loss
 
