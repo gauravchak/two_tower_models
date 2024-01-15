@@ -72,7 +72,7 @@ class TwoTowerWithUserHistoryEncoder(TwoTowerBaseRetrieval):
         #   user_history_output_dim from item_id_embedding_arch 
         self.user_tower_arch = nn.Linear(
             2 * user_id_embedding_dim + user_history_output_dim, 
-            user_id_embedding_dim
+            item_id_embedding_dim
         )
 
     def process_user_features(

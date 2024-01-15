@@ -69,7 +69,7 @@ class TwoTowerBaseRetrieval(nn.Module):
         #   user_id_embedding_dim from user_features_arch
         self.user_tower_arch = nn.Linear(
             2 * user_id_embedding_dim + item_id_embedding_dim, 
-            user_id_embedding_dim
+            item_id_embedding_dim
         )
 
         # Create the archs for item tower
@@ -131,13 +131,13 @@ class TwoTowerBaseRetrieval(nn.Module):
                 This is NOT USED in this implementation. It is handled in a follow on derived class.
         
         Returns:
-            torch.Tensor: Tensor containing user embeddings. Shape: [B, DU]
+            torch.Tensor: Tensor containing query user embeddings. Shape: [B, DI]
         """
         user_tower_input = self.process_user_features(
             user_id=user_id, user_features=user_features
         )
         # Compute the user embedding
-        user_embedding = self.user_tower_arch(user_tower_input)  # [B, DU]
+        user_embedding = self.user_tower_arch(user_tower_input)  # [B, DI]
         return user_embedding
 
     def compute_item_embeddings(
@@ -189,8 +189,8 @@ class TwoTowerBaseRetrieval(nn.Module):
         user_embedding = self.compute_user_embedding(
             user_id, user_features, user_history
         )
-        # Query the knn module to get the top num_items items
-        top_items = self.knn_module(user_embedding, self.num_items)  # [B, num_items]
+        # Query the knn module to get the top num_items items and their embeddings
+        top_items, _ = self.knn_module(user_embedding, self.num_items)  # [B, num_items]
         return top_items
 
     def debias_net_user_value(
