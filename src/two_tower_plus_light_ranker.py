@@ -65,3 +65,38 @@ class TwoTowerPlusLightRanker(TwoTowerWithPositionDebiasedWeights):
             enable_position_debiasing=enable_position_debiasing,
         )
         self.num_knn_items = num_knn_items
+    
+    def forward(
+        self,
+        user_id: torch.Tensor,  # [B]
+        user_features: torch.Tensor,  # [B, IU]
+        user_history: torch.Tensor,  # [B, H]
+    ) -> torch.Tensor:
+        """This is used for inference.
+
+        1. Compute the user embedding for KNN
+        2. Get num_knn_items items and their embeddings using the knn module
+        3. Compute pointwise immediate reward estimates for each of these items
+        4. Combine these rewards into a single reward estimate for each item
+        5. Select the top num_items items based on this reward estimate
+
+        Args:
+            user_id (torch.Tensor): Tensor representing the user ID. Shape: [B]
+            user_features (torch.Tensor): Tensor representing the user features. Shape: [B, IU]
+            user_history (torch.Tensor): Tensor representing the user history. Shape: [B, H]
+
+        Returns:
+            torch.Tensor: Tensor representing the top num_items items. Shape: [B, num_items]
+        """
+        # Compute the user embedding
+        knn_user_embedding = self.compute_user_embedding(
+            user_id, user_features, user_history
+        )
+        # Query the knn module to get the top num_items items and their embeddings
+        knn_items, knn_item_emb = self.knn_module(
+            knn_user_embedding,
+            self.num_knn_items
+        )  # knn_items: [B, num_knn_items] knn_item_emb: [B, num_knn_items, DI]
+
+
+        return top_items
