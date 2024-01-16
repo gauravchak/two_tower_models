@@ -30,7 +30,7 @@ class BaselineKNNModule(nn.Module):
         self, 
         query_embedding: torch.Tensor,  # [B, DI]
         num_items: int,  # (NI)
-    ) -> Tuple[torch.Tensor, torch.Tensor]:
+    ) -> Tuple[torch.Tensor, torch.Tensor, torch.Tensor]:
         """
         Returns MIPS ids and embeddings for the given user embedding.
 
@@ -45,7 +45,7 @@ class BaselineKNNModule(nn.Module):
         # Note: torch.topk returns a tuple of (values, indices)
         #   dots: [B, NI]
         #   indices: [B, NI]
-        dots, indices = torch.topk(
+        knn_scores, indices = torch.topk(
             torch.matmul(query_embedding, self.corpus.T), 
             k=num_items, 
             dim=1
@@ -59,5 +59,5 @@ class BaselineKNNModule(nn.Module):
         # Squeeze to remove the extra dimension
         embeddings = embeddings.squeeze(2)
 
-        # Return the indices and embeddings
-        return indices, embeddings
+        # Return indices, knn_scores, and embeddings
+        return indices, knn_scores, embeddings

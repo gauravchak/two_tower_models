@@ -190,7 +190,7 @@ class TwoTowerBaseRetrieval(nn.Module):
             user_id, user_features, user_history
         )
         # Query the knn module to get the top num_items items and their embeddings
-        top_items, _ = self.knn_module(user_embedding, self.num_items)  # [B, num_items]
+        top_items, _, _ = self.knn_module(user_embedding, self.num_items)  # [B, num_items]
         return top_items
 
     def debias_net_user_value(
