@@ -18,6 +18,8 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as F
 
+from src.baseline_knn_module import BaselineKNNModule
+
 
 class TwoTowerBaseRetrieval(nn.Module):
     def __init__(
@@ -30,7 +32,7 @@ class TwoTowerBaseRetrieval(nn.Module):
         item_id_embedding_dim: int,
         item_features_size: int,
         user_value_weights: List[float],
-        knn_module: nn.Module,
+        knn_module: BaselineKNNModule,
     ) -> None:
         """
         params:
@@ -56,7 +58,8 @@ class TwoTowerBaseRetrieval(nn.Module):
         # Create the archs fo user tower
         # Embedding layers for user id
         self.user_id_embedding_arch = nn.Embedding(
-            user_id_hash_size, user_id_embedding_dim)
+            user_id_hash_size, user_id_embedding_dim
+        )
         # Create an arch to process the user_features
         self.user_features_arch = nn.Sequential(
             nn.Linear(user_features_size, 256),
@@ -75,7 +78,8 @@ class TwoTowerBaseRetrieval(nn.Module):
         # Create the archs for item tower
         # Embedding layers for item id
         self.item_id_embedding_arch = nn.Embedding(
-            item_id_hash_size, item_id_embedding_dim)
+            item_id_hash_size, item_id_embedding_dim
+        )
         # Create an arch to process the item_features
         self.item_features_arch = nn.Sequential(
             nn.Linear(item_features_size, 256),
@@ -84,7 +88,9 @@ class TwoTowerBaseRetrieval(nn.Module):
         )
         # Create an arch to process the item_tower_input
         self.item_tower_arch = nn.Linear(
-            item_id_embedding_dim, item_id_embedding_dim)
+            in_features=2 * item_id_embedding_dim,  # concat id and features
+            out_features=item_id_embedding_dim
+        )
 
     def process_user_features(
         self,
@@ -118,7 +124,7 @@ class TwoTowerBaseRetrieval(nn.Module):
         user_history: torch.Tensor,  # [B, H]
     ) -> torch.Tensor:
         """
-        Compute the user embedding.
+        Compute the user embedding. This will be used to query KNN.
 
         Args:
             user_id: the user id
@@ -190,7 +196,10 @@ class TwoTowerBaseRetrieval(nn.Module):
             user_id, user_features, user_history
         )
         # Query the knn module to get the top num_items items and their embeddings
-        top_items, _, _ = self.knn_module(user_embedding, self.num_items)  # [B, num_items]
+        top_items, _, _ = self.knn_module(
+            query_embedding=user_embedding, 
+            num_items=self.num_items
+        )  # Returns indices [B, num_items], scores, embeddings
         return top_items
 
     def debias_net_user_value(
@@ -245,13 +254,13 @@ class TwoTowerBaseRetrieval(nn.Module):
         # Compute the user embedding
         user_embedding = self.compute_user_embedding(
             user_id, user_features, user_history
-        )  # [B, DU]
+        )  # [B, DI]
         # Compute item embeddings
         item_embeddings = self.compute_item_embeddings(
             item_id, item_features
         )  # [B, DI]
         # Compute the scores for every pair of user and item
-        scores = torch.matmul(user_embedding, item_embeddings.t())
+        scores = torch.matmul(user_embedding, item_embeddings.t())  # [B, B]
 
         # You should either try to handle the popularity bias 
         # of in-batch negatives using log-Q correction or
@@ -260,6 +269,9 @@ class TwoTowerBaseRetrieval(nn.Module):
         # Here we are not implementing either due to time constraints.
 
         # Compute softmax loss
+        # F.cross_entropy accepts target as 
+        #   ground truth class indices or class probabilities;
+        # Here we are using class indices
         target = torch.arange(scores.shape[0]).to(scores.device)  # [B]
         # We are not reducing to mean since not every row in the batch is a 
         # "positive" example. We are weighting the loss by the net_user_value
@@ -296,10 +308,10 @@ class TwoTowerBaseRetrieval(nn.Module):
 
         # Compute the product of loss and net_user_value
         loss = loss * net_user_value  # [B]
-        loss = torch.mean(loss)  # [1]
+        loss = torch.mean(loss)  # ()
         # Optionally add the position bias loss to the loss
         if self.enable_position_debiasing:
             loss = loss + additional_loss
 
-        return loss
+        return loss  # ()
 
