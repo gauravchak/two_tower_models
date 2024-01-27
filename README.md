@@ -41,6 +41,9 @@ In this step we add a further layer of funnel consistency where, inspired by
 [RLHF](https://arxiv.org/abs/1909.08593), we use the ranking model as a "reward model"
 and learn how to make the retrieval more aligned with the ranking model.
 
+# References
+1. [Seminal paper on two tower models in Youtube](https://static.googleusercontent.com/media/research.google.com/en//pubs/archive/45530.pdf)
+
 ------
 
 _Disclaimer:_ These are the personal creations/opinions of the author(s). Any artifacts, opinions stated here are theirs and not representative of their current or prior employer(s). Apart from publicly available information, any other information here is not claimed to refer to any company including ones the author(s) may have worked in or been associated with.
