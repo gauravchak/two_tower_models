@@ -7,10 +7,21 @@ from src.two_tower_plus_light_ranker import TwoTowerPlusLightRanker
 
 
 class TwoTowerPlusLightRankerWithKD(TwoTowerPlusLightRanker):
+    """
+    This derives from TwoTowerPlusLightRanker and adds knowledge distillation.
+
+    This uses logged scores from the late stage ranker as a label for the
+    light ranker that is trained jointly in TwoTowerPlusLightRanker.
+    To do that, we assume the light ranker predicts a few more auxiliary logits.
+    These are only used during train_forward and not during inference. These
+    are used to compute the loss against the logged "soft labels" from the late
+    stage ranker.
+    """
     def __init__(
         self,
         num_items: int,
         num_knn_items: int,
+        num_ranker_user_embeddings: int,
         user_id_hash_size: int,
         user_id_embedding_dim: int,
         user_features_size: int,
@@ -26,6 +37,7 @@ class TwoTowerPlusLightRankerWithKD(TwoTowerPlusLightRanker):
         params:
             num_items: the number of items to return per user/query
             num_knn_items: the number of items to retrieve using the knn module
+            num_ranker_user_embeddings: the number of user embeddings for light ranker
             user_id_hash_size: the size of the embedding table for users
             user_id_embedding_dim (DU): internal dimension
             user_features_size (IU): input feature size for users
@@ -43,6 +55,7 @@ class TwoTowerPlusLightRankerWithKD(TwoTowerPlusLightRanker):
         super().__init__(
             num_items=num_items,
             num_knn_items=num_knn_items,
+            num_ranker_user_embeddings=num_ranker_user_embeddings,
             user_id_hash_size=user_id_hash_size,
             user_id_embedding_dim=user_id_embedding_dim,
             user_features_size=user_features_size,
