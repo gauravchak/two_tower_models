@@ -26,7 +26,7 @@ class TwoTowerWithUserHistoryEncoder(TwoTowerBaseRetrieval):
         item_id_embedding_dim: int,
         item_features_size: int,
         user_value_weights: List[float],
-        knn_module: nn.Module,
+        mips_module: nn.Module,
     ) -> None:
         """
         params:
@@ -42,7 +42,7 @@ class TwoTowerWithUserHistoryEncoder(TwoTowerBaseRetrieval):
             user_value_weights: T dimensional weights, such that a linear
                 combination of point-wise immediate rewards is the best predictor
                 of long term user satisfaction.
-            knn_module: a module that computes the Maximum Inner Product Search (MIPS)
+            mips_module: a module that computes the Maximum Inner Product Search (MIPS)
                 over the item embeddings given the user embedding.
         """
         super().__init__(
@@ -54,7 +54,7 @@ class TwoTowerWithUserHistoryEncoder(TwoTowerBaseRetrieval):
             item_id_embedding_dim=item_id_embedding_dim,
             item_features_size=item_features_size,
             user_value_weights=user_value_weights,
-            knn_module=knn_module,
+            mips_module=mips_module,
         )
 
         num_user_history_dims = 2  # Keep in sync with user history encoder

@@ -1,17 +1,20 @@
+"""A sample implementation of Maximum Inner Product Search (MIPS) using PyTorch.
+"""
+
 from typing import Tuple
 
 import torch
 import torch.nn as nn
 
 
-class BaselineKNNModule(nn.Module):
+class BaselineMIPSModule(nn.Module):
     def __init__(
         self, 
         corpus_size:int, 
         embedding_dim:int
     ) -> None:
         """
-        Initialize the BaselineKNNModule.
+        Initialize the BaselineMIPSModule.
 
         Args:
             corpus_size (int): The size of the corpus.
@@ -20,7 +23,7 @@ class BaselineKNNModule(nn.Module):
         Returns:
             None
         """
-        super(BaselineKNNModule, self).__init__()
+        super(BaselineMIPSModule, self).__init__()
         self.corpus_size = corpus_size
         self.embedding_dim = embedding_dim
         # Create a random corpus of size [corpus_size, embedding_dim]
@@ -45,7 +48,7 @@ class BaselineKNNModule(nn.Module):
         # Note: torch.topk returns a tuple of (values, indices)
         #   dots: [B, NI]
         #   indices: [B, NI]
-        knn_scores, indices = torch.topk(
+        mips_scores, indices = torch.topk(
             torch.matmul(query_embedding, self.corpus.T), 
             k=num_items, 
             dim=1
@@ -59,5 +62,5 @@ class BaselineKNNModule(nn.Module):
         # Squeeze to remove the extra dimension
         embeddings = embeddings.squeeze(2)
 
-        # Return indices, knn_scores, and embeddings
-        return indices, knn_scores, embeddings
+        # Return indices, mips_scores, and embeddings
+        return indices, mips_scores, embeddings

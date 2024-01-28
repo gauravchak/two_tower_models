@@ -18,7 +18,7 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as F
 
-from src.baseline_knn_module import BaselineKNNModule
+from src.baseline_mips_module import BaselinemipsModule
 
 
 class TwoTowerBaseRetrieval(nn.Module):
@@ -32,7 +32,7 @@ class TwoTowerBaseRetrieval(nn.Module):
         item_id_embedding_dim: int,
         item_features_size: int,
         user_value_weights: List[float],
-        knn_module: BaselineKNNModule,
+        mips_module: BaselinemipsModule,
     ) -> None:
         """
         params:
@@ -47,13 +47,13 @@ class TwoTowerBaseRetrieval(nn.Module):
             user_value_weights: T dimensional weights, such that a linear
                 combination of point-wise immediate rewards is the best predictor
                 of long term user satisfaction.
-            knn_module: a module that computes the Maximum Inner Product Search (MIPS)
+            mips_module: a module that computes the Maximum Inner Product Search (MIPS)
                 over the item embeddings given the user embedding.
         """
         super().__init__()
         self.num_items = num_items
         self.user_value_weights = torch.tensor(user_value_weights)  # noqa TODO add device input.
-        self.knn_module = knn_module
+        self.mips_module = mips_module
 
         # Create the archs fo user tower
         # Embedding layers for user id
@@ -124,7 +124,7 @@ class TwoTowerBaseRetrieval(nn.Module):
         user_history: torch.Tensor,  # [B, H]
     ) -> torch.Tensor:
         """
-        Compute the user embedding. This will be used to query KNN.
+        Compute the user embedding. This will be used to query mips.
 
         Args:
             user_id: the user id
@@ -181,7 +181,7 @@ class TwoTowerBaseRetrieval(nn.Module):
     ) -> torch.Tensor:
         """This is used for inference.
 
-        Compute the user embedding and return the top num_items items using the KNN module.
+        Compute the user embedding and return the top num_items items using the mips module.
 
         Args:
             user_id (torch.Tensor): Tensor representing the user ID. Shape: [B]
@@ -195,8 +195,8 @@ class TwoTowerBaseRetrieval(nn.Module):
         user_embedding = self.compute_user_embedding(
             user_id, user_features, user_history
         )
-        # Query the knn module to get the top num_items items and their embeddings
-        top_items, _, _ = self.knn_module(
+        # Query the mips module to get the top num_items items and their embeddings
+        top_items, _, _ = self.mips_module(
             query_embedding=user_embedding, 
             num_items=self.num_items
         )  # Returns indices [B, num_items], scores, embeddings

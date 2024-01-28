@@ -41,6 +41,11 @@ In this step we add a further layer of funnel consistency where, inspired by
 [RLHF](https://arxiv.org/abs/1909.08593), we use the ranking model as a "reward model"
 and learn how to make the retrieval more aligned with the ranking model.
 
+## [baseline_mips_module.py](./src/baseline_mips_module.py)
+
+This is a helper file with a matrix multiplication approach to maximum inner product search.
+This helps us in having a PyTorch implementation to write tests on.
+
 # References
 1. [Seminal paper on two tower models in Youtube](https://static.googleusercontent.com/media/research.google.com/en//pubs/archive/45530.pdf)
 

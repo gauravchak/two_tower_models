@@ -20,7 +20,7 @@ class TwoTowerPlusLightRankerWithKD(TwoTowerPlusLightRanker):
     def __init__(
         self,
         num_items: int,
-        num_knn_items: int,
+        num_mips_items: int,
         num_ranker_user_embeddings: int,
         user_id_hash_size: int,
         user_id_embedding_dim: int,
@@ -30,13 +30,13 @@ class TwoTowerPlusLightRankerWithKD(TwoTowerPlusLightRanker):
         item_id_embedding_dim: int,
         item_features_size: int,
         user_value_weights: List[float],
-        knn_module: nn.Module,
+        mips_module: nn.Module,
         enable_position_debiasing: bool,
     ) -> None:
         """
         params:
             num_items: the number of items to return per user/query
-            num_knn_items: the number of items to retrieve using the knn module
+            num_mips_items: the number of items to retrieve using the mips module
             num_ranker_user_embeddings: the number of user embeddings for light ranker
             user_id_hash_size: the size of the embedding table for users
             user_id_embedding_dim (DU): internal dimension
@@ -48,13 +48,13 @@ class TwoTowerPlusLightRankerWithKD(TwoTowerPlusLightRanker):
             user_value_weights: T dimensional weights, such that a linear
                 combination of point-wise immediate rewards is the best predictor
                 of long term user satisfaction.
-            knn_module: a module that computes the Maximum Inner Product Search (MIPS)
+            mips_module: a module that computes the Maximum Inner Product Search (MIPS)
                 over the item embeddings given the user embedding.
             enable_position_debiasing: when enabled, we will debias the net_user_value
         """
         super().__init__(
             num_items=num_items,
-            num_knn_items=num_knn_items,
+            num_mips_items=num_mips_items,
             num_ranker_user_embeddings=num_ranker_user_embeddings,
             user_id_hash_size=user_id_hash_size,
             user_id_embedding_dim=user_id_embedding_dim,
@@ -64,7 +64,7 @@ class TwoTowerPlusLightRankerWithKD(TwoTowerPlusLightRanker):
             item_id_embedding_dim=item_id_embedding_dim,
             item_features_size=item_features_size,
             user_value_weights=user_value_weights,
-            knn_module=knn_module,
+            mips_module=mips_module,
             enable_position_debiasing=enable_position_debiasing,
         )
 

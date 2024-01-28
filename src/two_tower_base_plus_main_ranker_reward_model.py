@@ -28,7 +28,7 @@ class TwoTowerWithMainRankerReward(TwoTowerWithPositionDebiasedWeights):
         item_id_embedding_dim: int,
         item_features_size: int,
         user_value_weights: List[float],
-        knn_module: nn.Module,
+        mips_module: nn.Module,
         enable_position_debiasing: bool = False,
     ) -> None:
         """
@@ -44,7 +44,7 @@ class TwoTowerWithMainRankerReward(TwoTowerWithPositionDebiasedWeights):
             user_value_weights: T dimensional weights, such that a linear
                 combination of point-wise immediate rewards is the best predictor
                 of long term user satisfaction.
-            knn_module: a module that computes the Maximum Inner Product Search (MIPS)
+            mips_module: a module that computes the Maximum Inner Product Search (MIPS)
                 over the item embeddings given the user embedding.
             enable_position_debiasing: when enabled, we will debias the net_user_value
                 by the part explained purely by position.
@@ -59,7 +59,7 @@ class TwoTowerWithMainRankerReward(TwoTowerWithPositionDebiasedWeights):
             item_id_embedding_dim=item_id_embedding_dim,
             item_features_size=item_features_size,
             user_value_weights=user_value_weights,
-            knn_module=knn_module,
+            mips_module=mips_module,
             enable_position_debiasing=enable_position_debiasing,
         )
 
