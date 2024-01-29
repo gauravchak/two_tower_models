@@ -18,7 +18,7 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as F
 
-from src.baseline_mips_module import BaselinemipsModule
+from src.baseline_mips_module import BaselineMIPSModule
 
 
 class TwoTowerBaseRetrieval(nn.Module):
@@ -32,7 +32,7 @@ class TwoTowerBaseRetrieval(nn.Module):
         item_id_embedding_dim: int,
         item_features_size: int,
         user_value_weights: List[float],
-        mips_module: BaselinemipsModule,
+        mips_module: BaselineMIPSModule,
     ) -> None:
         """
         params:
