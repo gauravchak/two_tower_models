@@ -97,10 +97,12 @@ class TwoTowerWithUserHistoryEncoder(TwoTowerBaseRetrieval):
         user_history_embedding = self.item_id_embedding_arch(user_history)  # [B, H, DI]
         
         # Pass the user history through the user history encoder
-        user_history_summary = self.user_history_encoder(user_history_embedding)  # [B, 2, DI]
+        user_history_summary = self.user_history_encoder(
+            user_history_embedding
+        )  # [B, 2, DI]
 
-        # Concatenate the user history summary with the user_tower_input derived
-        # from the user_id and user_features
+        # Concatenate the user history summary with the user_tower_input
+        # derived from the user_id and user_features
         user_tower_input = super().process_user_features(user_id=user_id, user_features=user_features)
         user_tower_input = torch.cat(
             [user_tower_input, user_history_summary], dim=1

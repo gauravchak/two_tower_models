@@ -206,18 +206,23 @@ class TwoTowerBaseRetrieval(nn.Module):
         self,
         net_user_value: torch.Tensor,  # [B]
         position: torch.Tensor,  # [B]
+        user_embedding: torch.Tensor,  # [B, DI]
     ) -> Tuple[torch.Tensor, torch.Tensor]:
-        """Returns the processed net_user_value and any losses to be added to the loss function.
+        """Returns the processed net_user_value and any losses to be added
+        to the loss function.
 
         Args:
-            net_user_value (torch.Tensor): The net user value tensor of shape [B].
+            net_user_value (torch.Tensor): The net user value tensor [B].
             position (torch.Tensor): The position tensor of shape [B].
+            user_embedding: same as what is used in MIPS  # [B, DI]
 
         Returns:
-            Tuple[torch.Tensor, torch.Tensor]: A tuple containing the processed net_user_value tensor and any losses to be added to the loss function.
+            Tuple[torch.Tensor, torch.Tensor]: A tuple containing the
+            processed net_user_value tensor and any losses to be added
+            to the loss function.
 
-        This is written as a function and not in train_forward to make it easier to
-        implement in a derived class.
+        This is written as a function and not in train_forward to make
+        it easier to implement in a derived class.
         """
         return net_user_value, 0
 
@@ -286,15 +291,17 @@ class TwoTowerBaseRetrieval(nn.Module):
         # Compute the weighted average of the labels using user_value_weights
         # In the simplest case, assume you have a single label per item.
         # This label is either 1 or 0 depending on whether the user engaged
-        # with this item when recommended. Then the net_user_value is non zero
-        # actually exactly 1 when the user engaged with the item and 0 otherwise.
+        # with this item when recommended. Then the net_user_value is 1 when
+        # the user has engaged with the item and 0 otherwise.
         net_user_value = torch.matmul(labels, self.user_value_weights)  # [B]
 
         # Optionally debias the net_user_value by the part explained purely 
         # by position. Not implemented in this version. Hence net_user_value
         # is unchanged and additional_loss is 0.
         net_user_value, additional_loss = self.debias_net_user_value(
-            net_user_value, position
+            net_user_value=net_user_value,
+            position=position,
+            user_embedding=user_embedding,
         )  # [B], [1]
 
         # Floor by epsilon to only preserve positive net_user_value 

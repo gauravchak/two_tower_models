@@ -11,7 +11,9 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as F
 
-from src.two_tower_with_user_history_encoder import TwoTowerWithUserHistoryEncoder
+from src.two_tower_with_user_history_encoder import (
+    TwoTowerWithUserHistoryEncoder
+)
 
 
 class TwoTowerWithPositionDebiasedWeights(TwoTowerWithUserHistoryEncoder):
@@ -78,13 +80,15 @@ class TwoTowerWithPositionDebiasedWeights(TwoTowerWithUserHistoryEncoder):
         self,
         net_user_value: torch.Tensor,  # [B]
         position: torch.Tensor,  # [B]
+        user_embedding: torch.Tensor,  # [B, DI]
     ) -> Tuple[torch.Tensor, torch.Tensor]:
         """
         Returns the processed net_user_value and any losses to be added to the loss function.
 
         Args:
-            net_user_value (torch.Tensor): The input net_user_value tensor of shape [B].
+            net_user_value (torch.Tensor): The input net_user_value tensor [B].
             position (torch.Tensor): The input position tensor of shape [B].
+            user_embedding: same as what is used in MIPS  # [B, DI]
 
         Returns:
             Tuple[torch.Tensor, torch.Tensor]: A tuple containing the processed 
@@ -93,12 +97,14 @@ class TwoTowerWithPositionDebiasedWeights(TwoTowerWithUserHistoryEncoder):
         # Optionally debias the net_user_value by the part explained purely by position
         if self.enable_position_debiasing:
             # Compute the position bias
-            position_bias = self.position_bias_net_user_value(position).squeeze(1)  # [B]
+            position_bias = self.position_bias_net_user_value(
+                position
+            ).squeeze(1)  # [B]
             # Compute MSE loss between net_user_value and position_bias
             position_bias_loss = F.mse_loss(
                 input=net_user_value,
                 target=position_bias,
-                reduction="mean"
+                reduction="sum"
             )  # [1]
             # Compute the net_user_value without position bias
             net_user_value = net_user_value - position_bias
