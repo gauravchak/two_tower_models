@@ -317,9 +317,9 @@ class TwoTowerBaseRetrieval(nn.Module):
         # Compute the product of loss and net_user_value
         loss = loss * net_user_value  # [B]
         loss = torch.mean(loss)  # ()
-        # Optionally add the position bias loss to the loss
-        if self.enable_position_debiasing:
-            loss = loss + additional_loss
+
+        # This loss helps us learn the debiasing archs
+        loss = loss + additional_loss
 
         return loss  # ()
 

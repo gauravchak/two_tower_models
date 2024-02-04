@@ -36,7 +36,6 @@ class TwoTowerWithPositionDebiasedWeights(TwoTowerWithUserHistoryEncoder):
         item_features_size: int,
         user_value_weights: List[float],
         mips_module: nn.Module,
-        enable_position_debiasing: bool = False,
     ) -> None:
         """
         params:
@@ -54,7 +53,6 @@ class TwoTowerWithPositionDebiasedWeights(TwoTowerWithUserHistoryEncoder):
                 of long term user satisfaction.
             mips_module: a module that computes the Maximum Inner Product Search (MIPS)
                 over the item embeddings given the user embedding.
-            enable_position_debiasing: when enabled, we will debias the net_user_value
         """
         super().__init__(
             num_items=num_items,
@@ -68,13 +66,11 @@ class TwoTowerWithPositionDebiasedWeights(TwoTowerWithUserHistoryEncoder):
             user_value_weights=user_value_weights,
             mips_module=mips_module,
         )
-        self.enable_position_debiasing = enable_position_debiasing
-        if self.enable_position_debiasing:
-            # Create an embedding arch to process position
-            self.position_bias_net_user_value = nn.Embedding(
-                num_embeddings=100,
-                embedding_dim=1
-            )
+        # Create an embedding arch to process position
+        self.position_bias_net_user_value = nn.Embedding(
+            num_embeddings=100,
+            embedding_dim=1
+        )
 
     def debias_net_user_value(
         self,
@@ -95,25 +91,24 @@ class TwoTowerWithPositionDebiasedWeights(TwoTowerWithUserHistoryEncoder):
                 net_user_value tensor and the position_bias_loss tensor.
         """
         # Optionally debias the net_user_value by the part explained purely by position
-        if self.enable_position_debiasing:
-            estimated_net_user_value = self.position_bias_net_user_value(
-                position
-            ).squeeze(1)  # [B]
+        estimated_net_user_value = self.position_bias_net_user_value(
+            position
+        ).squeeze(1)  # [B]
 
-            # Compute MSE loss between net_user_value and estimated_net_user_value
-            estimated_net_user_value_loss = F.mse_loss(
-                input=estimated_net_user_value,
-                target=net_user_value,
-                reduction="sum"
-            )  # [1]
+        # Compute MSE loss between net_user_value and estimated_net_user_value
+        estimated_net_user_value_loss = F.mse_loss(
+            input=estimated_net_user_value,
+            target=net_user_value,
+            reduction="sum"
+        )  # [1]
 
-            # Ensure that estimated_net_user_value is positive
-            estimated_net_user_value = torch.clamp(
-                estimated_net_user_value,
-                min=1e-1  # Small positive number, choose as per your data
-            )  # [B]
+        # Ensure that estimated_net_user_value is positive
+        estimated_net_user_value = torch.clamp(
+            estimated_net_user_value,
+            min=1e-1  # Small positive number, choose as per your data
+        )  # [B]
 
-            # Compute the net_user_value without position bias
-            net_user_value = net_user_value / estimated_net_user_value
+        # Compute the net_user_value without position bias
+        net_user_value = net_user_value / estimated_net_user_value
         return net_user_value, estimated_net_user_value_loss
 

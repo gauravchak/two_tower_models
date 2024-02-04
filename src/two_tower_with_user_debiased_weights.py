@@ -62,7 +62,6 @@ class TwoTowerWithUserDebiasedWeights(TwoTowerWithUserHistoryEncoder):
         item_features_size: int,
         user_value_weights: List[float],
         mips_module: nn.Module,
-        enable_user_debiasing: bool = False,
     ) -> None:
         """
         params:
@@ -80,7 +79,6 @@ class TwoTowerWithUserDebiasedWeights(TwoTowerWithUserHistoryEncoder):
                 of long term user satisfaction.
             mips_module: a module that computes the Maximum Inner Product Search (MIPS)
                 over the item embeddings given the user embedding.
-            enable_user_debiasing: when enabled, we will debias the net_user_value
         """
         super().__init__(
             num_items=num_items,
@@ -94,13 +92,11 @@ class TwoTowerWithUserDebiasedWeights(TwoTowerWithUserHistoryEncoder):
             user_value_weights=user_value_weights,
             mips_module=mips_module,
         )
-        self.enable_user_debiasing = enable_user_debiasing
-        if self.enable_user_debiasing:
-            # Create an MLP to process user_embedding, which is
-            # a shortcut to user features.
-            self.user_debias_net_user_value = nn.Sequential(
-                nn.Linear(item_id_embedding_dim, 1)
-            )
+        # Create an MLP to process user_embedding, which is
+        # a shortcut to user features.
+        self.user_debias_net_user_value = nn.Sequential(
+            nn.Linear(item_id_embedding_dim, 1)
+        )
 
     def debias_net_user_value(
         self,
@@ -120,23 +116,22 @@ class TwoTowerWithUserDebiasedWeights(TwoTowerWithUserHistoryEncoder):
             Tuple[torch.Tensor, torch.Tensor]: A tuple containing the processed
                 net_user_value tensor and the loss tensor from estimating.
         """
-        if self.enable_user_debiasing:
-            # Estimate net_user_value from user_embedding
-            estimated_net_user_value = self.user_debias_net_user_value(
-                user_embedding
-            ).squeeze(1)  # [B]
-            # Ensure that estimated_net_user_value is positive
-            estimated_net_user_value = torch.clamp(
-                estimated_net_user_value,
-                min=1e-1  # Small positive number, choose as per your data
-            )  # [B]
-            # Compute MSE loss between net_user_value and estimated_net_user_value
-            estimated_net_user_value_loss = F.mse_loss(
-                input=estimated_net_user_value,
-                target=net_user_value,
-                reduction="sum"
-            )  # [1]
-            # Compute the net_user_value without user bias
-            net_user_value = net_user_value / estimated_net_user_value
+        # Estimate net_user_value from user_embedding
+        estimated_net_user_value = self.user_debias_net_user_value(
+            user_embedding
+        ).squeeze(1)  # [B]
+        # Ensure that estimated_net_user_value is positive
+        estimated_net_user_value = torch.clamp(
+            estimated_net_user_value,
+            min=1e-1  # Small positive number, choose as per your data
+        )  # [B]
+        # Compute MSE loss between net_user_value and estimated_net_user_value
+        estimated_net_user_value_loss = F.mse_loss(
+            input=estimated_net_user_value,
+            target=net_user_value,
+            reduction="sum"
+        )  # [1]
+        # Compute the net_user_value without user bias
+        net_user_value = net_user_value / estimated_net_user_value
         return net_user_value, estimated_net_user_value_loss
 

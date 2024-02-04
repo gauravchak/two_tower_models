@@ -32,7 +32,6 @@ class TwoTowerPlusLightRanker(TwoTowerWithDebiasing):
         item_features_size: int,
         user_value_weights: List[float],
         mips_module: nn.Module,
-        enable_position_debiasing: bool,
     ) -> None:
         """
         params:
@@ -51,7 +50,6 @@ class TwoTowerPlusLightRanker(TwoTowerWithDebiasing):
                 of long term user satisfaction.
             mips_module: a module that computes the Maximum Inner Product Search (MIPS)
                 over the item embeddings given the user embedding.
-            enable_position_debiasing: when enabled, we will debias the net_user_value
         """
         super().__init__(
             num_items=num_items,
@@ -64,7 +62,6 @@ class TwoTowerPlusLightRanker(TwoTowerWithDebiasing):
             item_features_size=item_features_size,
             user_value_weights=user_value_weights,
             mips_module=mips_module,
-            enable_position_debiasing=enable_position_debiasing,
         )
         self.num_mips_items: int = num_mips_items
         self.num_ranker_user_embeddings: int = num_ranker_user_embeddings
