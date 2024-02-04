@@ -226,45 +226,14 @@ class TwoTowerBaseRetrieval(nn.Module):
         """
         return net_user_value, 0
 
-    def train_forward(
+    def compute_training_loss(
         self,
-        user_id: torch.Tensor,  # [B]
-        user_features: torch.Tensor,  # [B, IU]
-        user_history: torch.Tensor,  # [B, H]
-        item_id: torch.Tensor,  # [B]
-        item_features: torch.Tensor,  # [B, II]
+        user_embedding: torch.Tensor,  # [B, DI]
+        item_embeddings: torch.Tensor,  # [B, DI]
         position: torch.Tensor,  # [B]
         labels: torch.Tensor  # [B, T]
-    ) -> float:
-        """
-        This function computes the loss during training.
-
-        Args:
-            user_id (torch.Tensor): User IDs. Shape: [B].
-            user_features (torch.Tensor): User features. Shape: [B, IU].
-            user_history (torch.Tensor): User history. Shape: [B, H].
-            item_id (torch.Tensor): Item IDs. Shape: [B].
-            item_features (torch.Tensor): Item features. Shape: [B, II].
-            position (torch.Tensor): Position. Shape: [B].
-            labels (torch.Tensor): Labels. Shape: [B, T].
-
-        Returns:
-            float: The computed loss.
-
-        Notes:
-            - The loss is computed using softmax loss and weighted by the net_user_value.
-            - Optionally, the net_user_value can be debiased by the part explained purely by position.
-            - The loss is clamped to preserve positive net_user_value and normalized between 0 and 1.
-        """
-        # Compute the user embedding
-        user_embedding = self.compute_user_embedding(
-            user_id, user_features, user_history
-        )  # [B, DI]
-        # Compute item embeddings
-        item_embeddings = self.compute_item_embeddings(
-            item_id, item_features
-        )  # [B, DI]
-        # Compute the scores for every pair of user and item
+    ) -> torch.Tensor:
+                # Compute the scores for every pair of user and item
         scores = torch.matmul(user_embedding, item_embeddings.t())  # [B, B]
 
         # You should either try to handle the popularity bias 
@@ -320,6 +289,47 @@ class TwoTowerBaseRetrieval(nn.Module):
 
         # This loss helps us learn the debiasing archs
         loss = loss + additional_loss
+        return loss
 
+    def train_forward(
+        self,
+        user_id: torch.Tensor,  # [B]
+        user_features: torch.Tensor,  # [B, IU]
+        user_history: torch.Tensor,  # [B, H]
+        item_id: torch.Tensor,  # [B]
+        item_features: torch.Tensor,  # [B, II]
+        position: torch.Tensor,  # [B]
+        labels: torch.Tensor  # [B, T]
+    ) -> float:
+        """
+        This function computes the loss during training.
+
+        Args:
+            user_id (torch.Tensor): User IDs. Shape: [B].
+            user_features (torch.Tensor): User features. Shape: [B, IU].
+            user_history (torch.Tensor): User history. Shape: [B, H].
+            item_id (torch.Tensor): Item IDs. Shape: [B].
+            item_features (torch.Tensor): Item features. Shape: [B, II].
+            position (torch.Tensor): Position. Shape: [B].
+            labels (torch.Tensor): Labels. Shape: [B, T].
+
+        Returns:
+            float: The computed loss.
+
+        Notes:
+            - The loss is computed using softmax loss and weighted by the net_user_value.
+            - Optionally, the net_user_value can be debiased by the part explained purely by position.
+            - The loss is clamped to preserve positive net_user_value and normalized between 0 and 1.
+        """
+        # Compute the user embedding
+        user_embedding = self.compute_user_embedding(
+            user_id, user_features, user_history
+        )  # [B, DI]
+        # Compute item embeddings
+        item_embeddings = self.compute_item_embeddings(
+            item_id, item_features
+        )  # [B, DI]
+
+        loss = self.compute_training_loss(user_embedding, item_embeddings, position=position, labels=labels)
         return loss  # ()
 
