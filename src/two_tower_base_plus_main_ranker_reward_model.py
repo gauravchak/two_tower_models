@@ -6,10 +6,10 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as F
 
-from src.two_tower_with_position_debiased_weights import TwoTowerWithPositionDebiasedWeights
+from src.two_tower_with_debiasing import TwoTowerWithDebiasing
 
 
-class TwoTowerWithMainRankerReward(TwoTowerWithPositionDebiasedWeights):
+class TwoTowerWithMainRankerReward(TwoTowerWithDebiasing):
     """
         Build a proxy of the main ranking estimator model here.
         While training use that proxy to compute the reward for both positives
@@ -29,7 +29,6 @@ class TwoTowerWithMainRankerReward(TwoTowerWithPositionDebiasedWeights):
         item_features_size: int,
         user_value_weights: List[float],
         mips_module: nn.Module,
-        enable_position_debiasing: bool = False,
     ) -> None:
         """
         Args:
@@ -46,8 +45,6 @@ class TwoTowerWithMainRankerReward(TwoTowerWithPositionDebiasedWeights):
                 of long term user satisfaction.
             mips_module: a module that computes the Maximum Inner Product Search (MIPS)
                 over the item embeddings given the user embedding.
-            enable_position_debiasing: when enabled, we will debias the net_user_value
-                by the part explained purely by position.
         """
         super().__init__(
             num_items=num_items,
@@ -60,6 +57,5 @@ class TwoTowerWithMainRankerReward(TwoTowerWithPositionDebiasedWeights):
             item_features_size=item_features_size,
             user_value_weights=user_value_weights,
             mips_module=mips_module,
-            enable_position_debiasing=enable_position_debiasing,
         )
 

@@ -6,12 +6,12 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as F
 
-from src.two_tower_with_position_debiased_weights import TwoTowerWithPositionDebiasedWeights
+from src.two_tower_with_debiasing import TwoTowerWithDebiasing
 
 
-class TwoTowerPlusLightRanker(TwoTowerWithPositionDebiasedWeights):
+class TwoTowerPlusLightRanker(TwoTowerWithDebiasing):
     """
-    This extends TwoTowerWithPositionDebiasedWeights and adds a light ranker.
+    This extends TwoTowerWithDebiasing and adds a light ranker.
     During inference, adter retrieving the top num_mips_items items and their
     embeddings using the mips module, we will compute pointwise immediate
     reward estimates for each of these items. We will then use user_value_weights
@@ -293,7 +293,7 @@ class TwoTowerPlusLightRanker(TwoTowerWithPositionDebiasedWeights):
         # by position. Not implemented in this version. Hence net_user_value
         # is unchanged and additional_loss is 0.
         net_user_value, additional_loss = self.debias_net_user_value(
-            net_user_value, position
+            net_user_value, position, mips_user_embedding
         )  # [B], [1]
 
         # Floor by epsilon to only preserve positive net_user_value 
@@ -301,16 +301,13 @@ class TwoTowerPlusLightRanker(TwoTowerWithPositionDebiasedWeights):
             net_user_value,
             min=0.000001  # small epsilon to avoid divide by 0
         )  # [B]
-        # Normalize net_user_value by the max value of it in batch.
-        # This is to ensure that the net_user_value is between 0 and 1.
-        net_user_value = net_user_value / torch.max(net_user_value)  # [B]
 
-        # Compute the product of loss and net_user_value
+        # Compute the product of loss and net_user_value, so that rows with
+        # higher net_user_value get more signal.
         mips_softmax_loss = mips_softmax_loss * net_user_value  # [B]
         mips_softmax_loss = torch.mean(mips_softmax_loss)  # [1]
         # Optionally add the position bias loss to the loss
-        if self.enable_position_debiasing:
-            mips_softmax_loss = mips_softmax_loss + additional_loss
+        mips_softmax_loss = mips_softmax_loss + additional_loss
 
         # Compute the light ranker loss
             

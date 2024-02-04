@@ -16,7 +16,7 @@ from src.two_tower_with_user_history_encoder import (
 )
 
 
-class TwoTowerWithUserDebiasedWeights(TwoTowerWithUserHistoryEncoder):
+class TwoTowerWithDebiasing(TwoTowerWithUserHistoryEncoder):
     """
     This derives from TwoTowerWithUserHistoryEncoder and adds both user and
     position debiasing to the example weights.
