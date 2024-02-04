@@ -281,7 +281,8 @@ class TwoTowerBaseRetrieval(nn.Module):
         # We are not reducing to mean since not every row in the batch is a 
         # "positive" example. We are weighting the loss by the net_user_value
         # after this to give more weight to the positive examples and possibly
-        # 0 weight to the hard-negative examples.
+        # 0 weight to the hard-negative examples. Note that net_user_value is
+        # assumed to be non-negative.
         loss = F.cross_entropy(
             input=scores,
             target=target,
