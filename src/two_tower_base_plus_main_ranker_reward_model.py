@@ -98,59 +98,7 @@ class TwoTowerWithMainRankerReward(TwoTowerWithDebiasing):
         item_embeddings = self.compute_item_embeddings(
             item_id, item_features
         )  # [B, DI]
-        # Compute logits for every pair of user and item
-        logits = torch.matmul(user_embedding, item_embeddings.t())  # [B, B]
-
-        # You should either try to handle the popularity bias 
-        # of in-batch negatives using log-Q correction or
-        # use random negatives. Mixed Negative Sampling paper suggests
-        # random negatives is a better approach.
-        # Here we are not implementing either due to time constraints.
-
-        # Compute softmax loss
-        # F.cross_entropy accepts target as 
-        #   ground truth class indices or class probabilities;
-        # Here we are using class indices
-        target = torch.arange(logits.shape[0]).to(logits.device)  # [B]
-        # We are not reducing to mean since not every row in the batch is a 
-        # "positive" example. We are weighting the loss by the net_user_value
-        # after this to give more weight to the positive examples and possibly
-        # 0 weight to the hard-negative examples. Note that net_user_value is
-        # assumed to be non-negative.
-        loss = F.cross_entropy(
-            input=logits,
-            target=target,
-            reduction="none"
-        )  # [B]
-
-        # Compute the weighted average of the labels using user_value_weights
-        # In the simplest case, assume you have a single label per item.
-        # This label is either 1 or 0 depending on whether the user engaged
-        # with this item when recommended. Then the net_user_value is 1 when
-        # the user has engaged with the item and 0 otherwise.
-        net_user_value = torch.matmul(labels, self.user_value_weights)  # [B]
-
-        # Optionally debias the net_user_value by the part explained purely 
-        # by position. Not implemented in this version. Hence net_user_value
-        # is unchanged and additional_loss is 0.
-        net_user_value, additional_loss = self.debias_net_user_value(
-            net_user_value=net_user_value,
-            position=position,
-            user_embedding=user_embedding,
-        )  # [B], [1]
-
-        # Floor by epsilon to only preserve positive net_user_value 
-        net_user_value = torch.clamp(
-            net_user_value,
-            min=0.000001  # small epsilon to avoid divide by 0
-        )  # [B]
-
-        # Compute the product of loss and net_user_value
-        loss = loss * net_user_value  # [B]
-        loss = torch.mean(loss)  # ()
-
-        # This loss helps us learn the debiasing archs
-        loss = loss + additional_loss
+        loss = super().compute_training_loss(user_embedding, item_embeddings, position=position, labels=labels)
 
         # Compute per task logits [T, B] and loss [B] for proxy ranker
 
