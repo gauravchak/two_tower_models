@@ -111,6 +111,8 @@ class TwoTowerBaseRetrieval(nn.Module):
         in https://github.com/gauravchak/user_preference_modeling
         In particular, we recommend trying the Mixture of Represenations
         implementation in https://github.com/gauravchak/user_preference_modeling/blob/main/src/user_mo_representations.py#L62
+
+        In this implementation we use an embedding table lookup approach.
         """
         user_id_embedding = self.user_id_embedding_arch(user_id)
         return user_id_embedding
@@ -119,16 +121,20 @@ class TwoTowerBaseRetrieval(nn.Module):
         self,
         user_id: torch.Tensor,  # [B]
         user_features: torch.Tensor,  # [B, IU]
+        user_history: torch.Tensor,  # [B, H]
     ) -> torch.Tensor:
         """
-        Process the user features to compute the user embedding.
+        Process the user features to compute the input to user tower arch.
 
         Args:
             user_id (torch.Tensor): Tensor containing the user IDs. Shape: [B]
             user_features (torch.Tensor): Tensor containing the user features. Shape: [B, IU]
+            user_history (torch.Tensor): For each batch an H length history of ids. Shape: [B, H]
+                In this base implementation this is unused. In subclasses this
+                affects the computation.
 
         Returns:
-            torch.Tensor: Tensor representing the user embedding. Shape: [B, DU]
+            torch.Tensor: Shape: [B, 2 * DU]
         """
         user_id_embedding = self.get_user_embedding(
             user_id=user_id,
@@ -168,7 +174,7 @@ class TwoTowerBaseRetrieval(nn.Module):
             torch.Tensor: Tensor containing query user embeddings. Shape: [B, DI]
         """
         user_tower_input = self.process_user_features(
-            user_id=user_id, user_features=user_features
+            user_id=user_id, user_features=user_features, user_history=user_history
         )
         # Compute the user embedding
         user_embedding = self.user_tower_arch(user_tower_input)  # [B, DI]

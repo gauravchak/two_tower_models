@@ -59,10 +59,13 @@ class TwoTowerWithUserHistoryEncoder(TwoTowerBaseRetrieval):
         )
 
         # Create a user history encoder
+        # Ideally num_attention_heads and num_attention_layers should be
+        # in a config and not hardcoded.
         self.user_history_encoder = UserHistoryEncoder(
             item_id_embedding_dim=item_id_embedding_dim,
             history_len=user_history_seqlen,
             num_attention_heads=4,
+            num_attention_layers=3,
         )
 
         user_history_output_dim = self.user_history_encoder.get_output_dim()
@@ -70,7 +73,10 @@ class TwoTowerWithUserHistoryEncoder(TwoTowerBaseRetrieval):
         # Input dimension =
         #   user_id_embedding_dim from get_user_embedding
         #   user_id_embedding_dim from user_features_arch
-        #   user_history_output_dim from item_id_embedding_arch
+        #   user_history_output_dim from user_history_encoder
+        # Output dimension = item_id_embedding_dim
+        # The output of this arch will be used for MIPS module.
+        # Hence this needs to be same as the item tower output.
         self.user_tower_arch = nn.Linear(
             2 * user_id_embedding_dim + user_history_output_dim, item_id_embedding_dim
         )
@@ -93,18 +99,25 @@ class TwoTowerWithUserHistoryEncoder(TwoTowerBaseRetrieval):
             torch.Tensor: Tensor representing the input for the user tower.
                 Shape: [B, 2 * DU + 2 * DI]
         """
-        # Pass the user history through the item embedding layer
+        # Pass the user history through the item embedding layer to convert to
+        # embeddings from ids
         user_history_embedding = self.item_id_embedding_arch(user_history)  # [B, H, DI]
 
         # Pass the user history through the user history encoder
         user_history_summary = self.user_history_encoder(
             user_history_embedding
         )  # [B, 2, DI]
+        user_history_summary = user_history_summary.view(
+            user_history_summary.shape[0], -1
+        )  # [B, 2 * DI]
 
-        # Concatenate the user history summary with the user_tower_input
-        # derived from the user_id and user_features
+        # Concatenate flattened user_history_summary with the user_tower_input
+        # derived from the super class, presumably only using user_id and
+        # user_features.
         user_tower_input = super().process_user_features(
-            user_id=user_id, user_features=user_features
+            user_id=user_id, user_features=user_features, user_history=user_history
         )
+        print(user_tower_input.shape)
+        print(user_history_summary.shape)
         user_tower_input = torch.cat([user_tower_input, user_history_summary], dim=1)
         return user_tower_input
