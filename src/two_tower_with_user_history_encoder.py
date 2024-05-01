@@ -117,7 +117,5 @@ class TwoTowerWithUserHistoryEncoder(TwoTowerBaseRetrieval):
         user_tower_input = super().process_user_features(
             user_id=user_id, user_features=user_features, user_history=user_history
         )
-        print(user_tower_input.shape)
-        print(user_history_summary.shape)
         user_tower_input = torch.cat([user_tower_input, user_history_summary], dim=1)
         return user_tower_input
