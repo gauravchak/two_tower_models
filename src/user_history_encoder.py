@@ -19,12 +19,12 @@ class UserHistoryEncoder(nn.Module):
         self,
         item_id_embedding_dim: int,
         history_len: int,
-        num_heads: int,
+        num_attention_heads: int,
     ) -> None:
         super().__init__()
         self.item_id_embedding_dim = item_id_embedding_dim
         self.history_len = history_len
-        self.num_heads = num_heads
+        self.num_attention_heads = num_attention_heads
 
         # Create positional embeddings of shape [H, DI]
         self.positional_embeddings = self.positional_encoding(
@@ -39,7 +39,7 @@ class UserHistoryEncoder(nn.Module):
         # (seq_len=H, batch_size=B, d_model=DI)
         # so we have to permute the dimensions when using this.
         self.multihead_attn = nn.MultiheadAttention(
-            embed_dim=item_id_embedding_dim, num_heads=num_heads
+            embed_dim=item_id_embedding_dim, num_heads=self.num_attention_heads
         )
 
     def positional_encoding(self, seq_len: int, d_model: int) -> torch.Tensor:
