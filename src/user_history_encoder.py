@@ -20,11 +20,13 @@ class UserHistoryEncoder(nn.Module):
         item_id_embedding_dim: int,
         history_len: int,
         num_attention_heads: int,
+        num_attention_layers: int,
     ) -> None:
         super().__init__()
         self.item_id_embedding_dim = item_id_embedding_dim
         self.history_len = history_len
         self.num_attention_heads = num_attention_heads
+        self.num_attention_layers = num_attention_layers
 
         # Create positional embeddings of shape [H, DI]
         self.positional_embeddings = self.positional_encoding(
@@ -38,8 +40,13 @@ class UserHistoryEncoder(nn.Module):
         # Note: PyTorch's MultiheadAttention expects input shape
         # (seq_len=H, batch_size=B, d_model=DI)
         # so we have to permute the dimensions when using this.
-        self.multihead_attn = nn.MultiheadAttention(
-            embed_dim=item_id_embedding_dim, num_heads=self.num_attention_heads
+        self.multihead_attn_layers = nn.ModuleList(
+            [
+                nn.MultiheadAttention(
+                    embed_dim=item_id_embedding_dim, num_heads=self.num_attention_heads
+                )
+                for _ in range(self.num_attention_layers)
+            ]
         )
 
     def positional_encoding(self, seq_len: int, d_model: int) -> torch.Tensor:
@@ -61,6 +68,9 @@ class UserHistoryEncoder(nn.Module):
 
         returns [B, 2, DI] a summary of the user history
         """
+        # Get mean pooling of the history
+        mean_pooled_history_encoding = torch.mean(user_history, dim=1)  # [B, DI]
+
         # Add positional encodings to history embeddings
         # Since positional encodings are [H, DI] and history embeddings are [B, H, DI]
         # we need to unsqueeze the positional embeddings to [1, H, DI] and add them
@@ -71,23 +81,24 @@ class UserHistoryEncoder(nn.Module):
         # attn_output_weights, we only keep attn_output.
         # Since user_history : [B, H, DI]
         # user_history.permute(1, 0, 2) : [H, B, DI]
-        attn_output, _ = self.multihead_attn(
-            query=user_history.permute(1, 0, 2),
-            key=user_history.permute(1, 0, 2),
-            value=user_history.permute(1, 0, 2),
-        )
+        user_history_permuted = user_history.permute(1, 0, 2)
+        for layer in self.multihead_attn_layers:
+            user_history_permuted, _ = layer(
+                query=user_history_permuted,
+                key=user_history_permuted,
+                value=user_history_permuted,
+            )
 
-        # Convert attn_output back to (B, H, DI) format
-        # attn_output : [H, B, DI]
-        # Hence attn_output.permute(1, 0, 2) : [B, H, DI]
-        attn_output = attn_output.permute(1, 0, 2)
+        # Convert user_history_permuted back to (B, H, DI) format
+        # user_history_permuted : [H, B, DI]
+        # Hence user_history_permuted.permute(1, 0, 2) : [B, H, DI]
+        user_history = user_history_permuted.permute(1, 0, 2)
 
-        # We will only take the first (most recent) item and the mean value
-        first_item = attn_output[:, 0, :].squeeze(1)  # [B, DI]
-        mean_value = torch.mean(attn_output, dim=1)  # [B, DI]
+        # We will only take the first (most recent) item
+        most_recent_item_encoding = user_history[:, 0, :].squeeze(1)  # [B, DI]
         # Stack the first item and the mean value
         user_history_summary = torch.stack(
-            [first_item, mean_value], dim=1
+            [most_recent_item_encoding, mean_pooled_history_encoding], dim=1
         )  # [B, 2, DI]
         return user_history_summary
 
