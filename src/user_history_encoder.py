@@ -61,7 +61,7 @@ class UserHistoryEncoder(nn.Module):
         """
         params:
             user_history: [B, H, DI] the newest item is assumed to be at
-                the beginning of the sequence.
+                the beginning of the sequence. Here H is the history length.
 
         returns [B, 2, DI] a summary of the user history
         """
@@ -73,6 +73,8 @@ class UserHistoryEncoder(nn.Module):
         # Compute multi-head attention
         # Note: PyTorch's MultiheadAttention returns attn_output and 
         # attn_output_weights, we only keep attn_output.
+        # Since user_history : [B, H, DI]
+        # user_history.permute(1, 0, 2) : [H, B, DI]
         attn_output, _ = self.multihead_attn(
             query=user_history.permute(1, 0, 2),
             key=user_history.permute(1, 0, 2),
@@ -80,15 +82,18 @@ class UserHistoryEncoder(nn.Module):
         )
 
         # Convert attn_output back to (B, H, DI) format
+        # attn_output : [H, B, DI]
+        # Hence attn_output.permute(1, 0, 2) : [B, H, DI]
         attn_output = attn_output.permute(1, 0, 2)
 
         # We will only take the first (most recent) item and the mean value
-        first_item = attn_output[:, 0, :].squeeze(1)
-        mean_value = torch.mean(attn_output, dim=1)
+        first_item = attn_output[:, 0, :].squeeze(1)  # [B, DI]
+        mean_value = torch.mean(attn_output, dim=1)  # [B, DI]
         # Stack the first item and the mean value
         user_history_summary = torch.stack(
             [first_item, mean_value], dim=1
         )  # [B, 2, DI]
         return user_history_summary
 
-
+    def get_output_dim(self) -> int:
+        return self.item_id_embedding_dim * 2

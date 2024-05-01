@@ -36,6 +36,8 @@ class BaselineMIPSModule(nn.Module):
     ) -> Tuple[torch.Tensor, torch.Tensor, torch.Tensor]:
         """
         Returns MIPS ids and embeddings for the given user embedding.
+        Note that in the complete implementation you will need item ids
+        and not just MIPS indices.
 
         Args:
             query_embedding (torch.Tensor): The user embedding tensor of shape [B, DU].

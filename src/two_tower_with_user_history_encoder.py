@@ -57,14 +57,14 @@ class TwoTowerWithUserHistoryEncoder(TwoTowerBaseRetrieval):
             mips_module=mips_module,
         )
 
-        num_user_history_dims = 2  # Keep in sync with user history encoder
-        user_history_output_dim = num_user_history_dims * item_id_embedding_dim
         # Create a user history encoder
         self.user_history_encoder = UserHistoryEncoder(
             item_id_embedding_dim=item_id_embedding_dim,
             history_len=user_history_seqlen,
             num_heads=4,
         )
+
+        user_history_output_dim = self.user_history_encoder.get_output_dim()
         # Create an arch to process the user_tower_input
         # Input dimension = 
         #   user_id_embedding_dim from get_user_embedding

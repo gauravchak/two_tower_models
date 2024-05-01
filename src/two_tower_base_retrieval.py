@@ -57,39 +57,44 @@ class TwoTowerBaseRetrieval(nn.Module):
         self.user_value_weights = torch.tensor(user_value_weights)
         self.mips_module = mips_module
 
-        # Create a module to represent user preference by a table lookup.
+        # Create the machinery for user tower
+
+        # 1. Create a module to represent user preference by a table lookup.
         # Please see https://github.com/gauravchak/user_preference_modeling
         # for other ways to represent user preference embedding.
         self.user_id_embedding_arch = nn.Embedding(
             user_id_hash_size, user_id_embedding_dim
         )
-        # Create an arch to process the user_features
+        # 2. Create an arch to process the user_features
         self.user_features_arch = nn.Sequential(
             nn.Linear(user_features_size, 256),
             nn.ReLU(),
             nn.Linear(256, user_id_embedding_dim)
         )
-        # Create an arch to process the user_tower_input
+        # 3. Create an arch to process the user_tower_input
         # Input dimension = 
         #   user_id_embedding_dim from get_user_embedding
         #   user_id_embedding_dim from user_features_arch
+        # Output dimension = item_id_embedding_dim
+        # The output of this arch will be used for MIPS module.
+        # Hence this needs to be same as the item tower output.
         self.user_tower_arch = nn.Linear(
-            2 * user_id_embedding_dim + item_id_embedding_dim, 
+            2 * user_id_embedding_dim,
             item_id_embedding_dim
         )
 
         # Create the archs for item tower
-        # Embedding layers for item id
+        # 1. Embedding layers for item id
         self.item_id_embedding_arch = nn.Embedding(
             item_id_hash_size, item_id_embedding_dim
         )
-        # Create an arch to process the item_features
+        # 2. Create an arch to process the item_features
         self.item_features_arch = nn.Sequential(
             nn.Linear(item_features_size, 256),
             nn.ReLU(),
             nn.Linear(256, item_id_embedding_dim)
         )
-        # Create an arch to process the item_tower_input
+        # 3. Create an arch to process the item_tower_input
         self.item_tower_arch = nn.Linear(
             in_features=2 * item_id_embedding_dim,  # concat id and features
             out_features=item_id_embedding_dim

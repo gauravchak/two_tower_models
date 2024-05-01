@@ -1,8 +1,8 @@
 import torch
 import unittest
 
-from two_tower_models.src.two_tower_base_retrieval import TwoTowerBaseRetrieval 
-from two_tower_models.src.baseline_mips_module import BaselineMIPSModule
+from src.two_tower_base_retrieval import TwoTowerBaseRetrieval 
+from src.baseline_mips_module import BaselineMIPSModule
 
 
 class TestTwoTowerBaseRetrieval(unittest.TestCase):
@@ -12,10 +12,10 @@ class TestTwoTowerBaseRetrieval(unittest.TestCase):
         user_id_embedding_dim = 50
         user_features_size = 20
         item_id_hash_size = 150
-        item_id_embedding_dim = 50
+        item_id_embedding_dim = 40
         item_features_size = 30
         user_value_weights = [0.1, 0.2, 0.3]
-        mips_module = BaselineMIPSModule(corpus_size=1000, embedding_dim=50)
+        mips_module = BaselineMIPSModule(corpus_size=1000, embedding_dim=item_id_embedding_dim)
 
         self.module = TwoTowerBaseRetrieval(
             num_items=num_items,
@@ -36,9 +36,10 @@ class TestTwoTowerBaseRetrieval(unittest.TestCase):
 
     def test_forward_pass(self):
         item_recommendations = self.module(self.user_id, self.user_features, self.user_history)
+        print(item_recommendations)
         self.assertEqual(item_recommendations.shape, torch.Size([self.batch_size, self.module.num_items]))
         self.assertTrue(torch.all(item_recommendations >= 0))
-        self.assertTrue(torch.all(item_recommendations < self.module.item_id_embedding_arch.num_embeddings))
+        self.assertTrue(torch.all(item_recommendations < self.module.mips_module.corpus_size))
 
 if __name__ == '__main__':
     unittest.main()
