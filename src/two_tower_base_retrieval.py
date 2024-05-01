@@ -55,8 +55,9 @@ class TwoTowerBaseRetrieval(nn.Module):
         self.user_value_weights = torch.tensor(user_value_weights)  # noqa TODO add device input.
         self.mips_module = mips_module
 
-        # Create the archs fo user tower
-        # Embedding layers for user id
+        # Create a module to represent user preference by a table lookup.
+        # Please see https://github.com/gauravchak/user_preference_modeling
+        # for other ways to represent user preference embedding.
         self.user_id_embedding_arch = nn.Embedding(
             user_id_hash_size, user_id_embedding_dim
         )
@@ -68,7 +69,7 @@ class TwoTowerBaseRetrieval(nn.Module):
         )
         # Create an arch to process the user_tower_input
         # Input dimension = 
-        #   user_id_embedding_dim from user_id_embedding_arch
+        #   user_id_embedding_dim from get_user_embedding
         #   user_id_embedding_dim from user_features_arch
         self.user_tower_arch = nn.Linear(
             2 * user_id_embedding_dim + item_id_embedding_dim, 
@@ -92,6 +93,21 @@ class TwoTowerBaseRetrieval(nn.Module):
             out_features=item_id_embedding_dim
         )
 
+    def get_user_embedding(
+        self,
+        user_id: torch.Tensor,  # [B]
+        user_features: torch.Tensor,  # [B, IU]
+    ) -> torch.Tensor:
+        """
+        Extract user representation via memorization/generalization
+        The API is same as the multiple ways of user representation implemented
+        in https://github.com/gauravchak/user_preference_modeling
+        In particular, we recommend trying the Mixture of Represenations
+        implementation in https://github.com/gauravchak/user_preference_modeling/blob/main/src/user_mo_representations.py#L62
+        """
+        user_id_embedding = self.user_id_embedding_arch(user_id)
+        return user_id_embedding
+
     def process_user_features(
         self,
         user_id: torch.Tensor,  # [B]
@@ -107,8 +123,10 @@ class TwoTowerBaseRetrieval(nn.Module):
         Returns:
             torch.Tensor: Tensor representing the user embedding. Shape: [B, DU]
         """
-        # Process user id
-        user_id_embedding = self.user_id_embedding_arch(user_id)  # [B, DU]
+        user_id_embedding = self.get_user_embedding(
+            user_id=user_id,
+            user_features=user_features
+        )  # [B, DU]
         # Process user features
         user_features_embedding = self.user_features_arch(user_features)  # [B, DU]
         # Concatenate the inputs and pass them through a linear layer to compute the user embedding

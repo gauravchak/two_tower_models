@@ -71,7 +71,7 @@ class TwoTowerPlusLightRanker(TwoTowerWithDebiasing):
         # Create a user tower arch to process the user_tower_input
         # and produce the light ranker user embeddings [B, NU, DI]
         # Input dimension = 
-        #   user_id_embedding_dim from user_id_embedding_arch
+        #   user_id_embedding_dim from get_user_embedding
         #   user_id_embedding_dim from user_features_arch
         #   user_history_output_dim from item_id_embedding_arch 
         self.ranker_user_tower = nn.Linear(
