@@ -7,9 +7,9 @@ from src.user_history_encoder import UserHistoryEncoder
 class TestUserHistoryEncoder(unittest.TestCase):
     def test_forward(self):
         item_id_embedding_dim = 64
-        history_len = 10
+        history_len = 128
         num_attention_heads = 4
-        num_attention_layers = 2
+        num_attention_layers = 12
 
         batch_size = 32
         user_history = torch.randn(batch_size, history_len, item_id_embedding_dim)
