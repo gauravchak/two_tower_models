@@ -11,19 +11,18 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as F
 
-from src.two_tower_with_user_history_encoder import (
-    TwoTowerWithUserHistoryEncoder
-)
+from src.two_tower_with_user_history_encoder import TwoTowerWithUserHistoryEncoder
 
 
 class TwoTowerWithPositionDebiasedWeights(TwoTowerWithUserHistoryEncoder):
     """
     This derives from TwoTowerWithUserHistoryEncoder and adds position debiasing to the example weights.
 
-    This is a specific example of what you can do in terms of modifying the weights. 
+    This is a specific example of what you can do in terms of modifying the weights.
     There is a lot more to try here. Softmax loss unfortunately is very sensitive to
     how you are defining the positives. Hence, such experimentation is high ROI.
     """
+
     def __init__(
         self,
         num_items: int,
@@ -68,8 +67,7 @@ class TwoTowerWithPositionDebiasedWeights(TwoTowerWithUserHistoryEncoder):
         )
         # Create an embedding arch to process position
         self.position_bias_net_user_value = nn.Embedding(
-            num_embeddings=100,
-            embedding_dim=1
+            num_embeddings=100, embedding_dim=1
         )
 
     def debias_net_user_value(
@@ -87,28 +85,25 @@ class TwoTowerWithPositionDebiasedWeights(TwoTowerWithUserHistoryEncoder):
             user_embedding: same as what is used in MIPS  # [B, DI]
 
         Returns:
-            Tuple[torch.Tensor, torch.Tensor]: A tuple containing the processed 
+            Tuple[torch.Tensor, torch.Tensor]: A tuple containing the processed
                 net_user_value tensor and the position_bias_loss tensor.
         """
         # Optionally debias the net_user_value by the part explained purely by position
-        estimated_net_user_value = self.position_bias_net_user_value(
-            position
-        ).squeeze(1)  # [B]
+        estimated_net_user_value = self.position_bias_net_user_value(position).squeeze(
+            1
+        )  # [B]
 
         # Compute MSE loss between net_user_value and estimated_net_user_value
         estimated_net_user_value_loss = F.mse_loss(
-            input=estimated_net_user_value,
-            target=net_user_value,
-            reduction="sum"
+            input=estimated_net_user_value, target=net_user_value, reduction="sum"
         )  # [1]
 
         # Ensure that estimated_net_user_value is positive
         estimated_net_user_value = torch.clamp(
             estimated_net_user_value,
-            min=1e-1  # Small positive number, choose as per your data
+            min=1e-1,  # Small positive number, choose as per your data
         )  # [B]
 
         # Compute the net_user_value without position bias
         net_user_value = net_user_value / estimated_net_user_value
         return net_user_value, estimated_net_user_value_loss
-
