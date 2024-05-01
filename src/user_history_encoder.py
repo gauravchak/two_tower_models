@@ -10,8 +10,11 @@ import math
 
 class UserHistoryEncoder(nn.Module):
     """
-    Given user history [B, H, DI], compute a summary using positional embeddings.
+    Given user history [B, H, DI], compute a summary
+    using positional embeddings similar to
+    Attention is all you need paper.
     """
+
     def __init__(
         self,
         item_id_embedding_dim: int,
@@ -25,39 +28,32 @@ class UserHistoryEncoder(nn.Module):
 
         # Create positional embeddings of shape [H, DI]
         self.positional_embeddings = self.positional_encoding(
-            seq_len = history_len,
-            d_model = item_id_embedding_dim
+            seq_len=history_len, d_model=item_id_embedding_dim
         )
-        # Reverse the positional encodings since in the user history we 
+        # Reverse the positional encodings since in the user history we
         # using this for, the newest item is at the beginning of the sequence.
         self.positional_embeddings = self.positional_embeddings.flip([0])
 
         # Create the multi-head attention module
-        # Note: PyTorch's MultiheadAttention expects input shape 
-        # (seq_len=H, batch_size=B, d_model=DI) 
+        # Note: PyTorch's MultiheadAttention expects input shape
+        # (seq_len=H, batch_size=B, d_model=DI)
         # so we have to permute the dimensions when using this.
         self.multihead_attn = nn.MultiheadAttention(
-            embed_dim=item_id_embedding_dim,
-            num_heads=num_heads
+            embed_dim=item_id_embedding_dim, num_heads=num_heads
         )
 
-    def positional_encoding(
-        self,
-        seq_len:int, 
-        d_model:int
-    ) -> torch.Tensor:
+    def positional_encoding(self, seq_len: int, d_model: int) -> torch.Tensor:
         PE = torch.zeros(seq_len, d_model)
         for pos in range(seq_len):
             for i in range(0, d_model, 2):
-                PE[pos, i] = math.sin(pos / (10000 ** ((2 * i)/d_model)))
+                PE[pos, i] = math.sin(pos / (10000 ** ((2 * i) / d_model)))
                 if i + 1 < d_model:
-                    PE[pos, i + 1] = math.cos(pos / (10000 ** ((2 * (i + 1))/d_model)))
+                    PE[pos, i + 1] = math.cos(
+                        pos / (10000 ** ((2 * (i + 1)) / d_model))
+                    )
         return PE
 
-    def forward(
-        self,
-        user_history: torch.Tensor
-    ) -> torch.Tensor:
+    def forward(self, user_history: torch.Tensor) -> torch.Tensor:
         """
         params:
             user_history: [B, H, DI] the newest item is assumed to be at
@@ -71,14 +67,14 @@ class UserHistoryEncoder(nn.Module):
         user_history = user_history + self.positional_embeddings.unsqueeze(0)
 
         # Compute multi-head attention
-        # Note: PyTorch's MultiheadAttention returns attn_output and 
+        # Note: PyTorch's MultiheadAttention returns attn_output and
         # attn_output_weights, we only keep attn_output.
         # Since user_history : [B, H, DI]
         # user_history.permute(1, 0, 2) : [H, B, DI]
         attn_output, _ = self.multihead_attn(
             query=user_history.permute(1, 0, 2),
             key=user_history.permute(1, 0, 2),
-            value=user_history.permute(1, 0, 2)
+            value=user_history.permute(1, 0, 2),
         )
 
         # Convert attn_output back to (B, H, DI) format
