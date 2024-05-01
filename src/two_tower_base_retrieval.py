@@ -251,7 +251,7 @@ class TwoTowerBaseRetrieval(nn.Module):
         position: torch.Tensor,  # [B]
         labels: torch.Tensor  # [B, T]
     ) -> torch.Tensor:
-                # Compute the scores for every pair of user and item
+        # Compute the scores for every pair of user and item
         scores = torch.matmul(user_embedding, item_embeddings.t())  # [B, B]
 
         # You should either try to handle the popularity bias 
