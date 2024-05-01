@@ -1,6 +1,7 @@
 """
 TODO
 """
+
 from typing import List, Tuple
 import torch
 import torch.nn as nn
@@ -18,6 +19,7 @@ class TwoTowerPlusLightRanker(TwoTowerWithDebiasing):
     to combine these rewards into a single reward estimate for each item.
     We will then select the top num_items items based on this reward estimate.
     """
+
     def __init__(
         self,
         num_items: int,
@@ -70,21 +72,21 @@ class TwoTowerPlusLightRanker(TwoTowerWithDebiasing):
         user_history_output_dim: int = num_user_history_dims * item_id_embedding_dim
         # Create a user tower arch to process the user_tower_input
         # and produce the light ranker user embeddings [B, NU, DI]
-        # Input dimension = 
+        # Input dimension =
         #   user_id_embedding_dim from get_user_embedding
         #   user_id_embedding_dim from user_features_arch
-        #   user_history_output_dim from item_id_embedding_arch 
+        #   user_history_output_dim from item_id_embedding_arch
         self.ranker_user_tower = nn.Linear(
             2 * user_id_embedding_dim + user_history_output_dim,
-            num_ranker_user_embeddings * item_id_embedding_dim
+            num_ranker_user_embeddings * item_id_embedding_dim,
         )
 
         # Create a linear layer from ( 2*DI + NU + 1) to T task logits
         self.light_ranker = nn.Linear(
-            in_features=2*item_id_embedding_dim + self.num_ranker_user_embeddings + 1,
-            out_features=len(user_value_weights)
+            in_features=2 * item_id_embedding_dim + self.num_ranker_user_embeddings + 1,
+            out_features=len(user_value_weights),
         )
-    
+
     def compute_user_embedding(
         self,
         user_id: torch.Tensor,  # [B]
@@ -103,7 +105,7 @@ class TwoTowerPlusLightRanker(TwoTowerWithDebiasing):
                 a fixed length, but in practice you will probably want to support variable
                 length histories. jagged tensors are a good way to do this.
                 This is NOT USED in this implementation. It is handled in a follow on derived class.
-        
+
         Returns:
             torch.Tensor: Tensor containing mips query user embeddings. Shape: [B, DI]
             torch.Tensor: Tensor containing light ranker user embeddings. Shape: [B, NU, DI]
@@ -116,11 +118,13 @@ class TwoTowerPlusLightRanker(TwoTowerWithDebiasing):
         mips_user_embedding = self.user_tower_arch(user_tower_input)  # [B, DI]
 
         # Compute the light ranker user embeddings
-        light_ranker_user_embeddings = self.ranker_user_tower(user_tower_input)  # [B, NU * DI]
+        light_ranker_user_embeddings = self.ranker_user_tower(
+            user_tower_input
+        )  # [B, NU * DI]
         light_ranker_user_embeddings = light_ranker_user_embeddings.view(
             light_ranker_user_embeddings.size(0),
             self.num_ranker_user_embeddings,
-            self.item_id_embedding_dim
+            self.item_id_embedding_dim,
         )  # [B, NU, DI]
         return mips_user_embedding, light_ranker_user_embeddings
 
@@ -152,29 +156,26 @@ class TwoTowerPlusLightRanker(TwoTowerWithDebiasing):
         )  # [B, DI], [B, NU, DI]
         # Query the mips module to get the top num_items items and their embeddings
         mips_items, mips_scores, mips_item_emb = self.mips_module(
-            mips_user_embedding,
-            self.num_mips_items
+            mips_user_embedding, self.num_mips_items
         )
-        # mips_items: [B, num_mips_items=NI], 
+        # mips_items: [B, num_mips_items=NI],
         # mips_scores: [B, NI]
         # mips_item_emb: [B, NI, DI]
 
         # Compute light ranker input
         # Dot product for each user embedding with each item embedding
         scores = torch.bmm(
-            light_ranker_user_embeddings, 
-            mips_item_emb.permute(0, 2, 1)
+            light_ranker_user_embeddings, mips_item_emb.permute(0, 2, 1)
         )  # [B, NU, NI]
         scores = scores.permute(0, 2, 1)  # [B, NI, NU]
         # Convert to probabilities
         probs = F.softmax(scores, dim=2)  # [B, NI, NU]
         # Compute weighted sum of user embeddings
         target_aware_user_embeddings = torch.bmm(
-            probs, 
-            light_ranker_user_embeddings
+            probs, light_ranker_user_embeddings
         )  # [B, NI, DI]
 
-        # Concatenate 
+        # Concatenate
         # mips_item_emb to capture item specific info
         # target_aware_user_embeddings captures importance weights of each user embedding
         # scores to capture mutual info of each user embedding with item (~ Factoization Machines)
@@ -185,7 +186,8 @@ class TwoTowerPlusLightRanker(TwoTowerWithDebiasing):
                 target_aware_user_embeddings,  # [B, NI, DI]
                 scores,  # [B, NI, NU]
                 mips_scores.unsqueeze(2),  # [B, NI, 1]
-            ], dim=2
+            ],
+            dim=2,
         )  # [B, NI, 2 * DI + NU + 1]
 
         # 3. Compute pointwise immediate reward estimates for each of these items
@@ -193,23 +195,16 @@ class TwoTowerPlusLightRanker(TwoTowerWithDebiasing):
 
         # 4. Combine these rewards into a single reward estimate for each item
         net_user_value = torch.sum(
-            task_logits * torch.tensor(self.user_value_weights),
-            dim=2
+            task_logits * torch.tensor(self.user_value_weights), dim=2
         )  # [B, num_mips_items]
 
         # 5. Select the top num_items items based on this reward estimate
         _, top_indices = torch.topk(
-            net_user_value, 
-            k=self.num_items, 
-            dim=1
+            net_user_value, k=self.num_items, dim=1
         )  # [B, num_items]
 
         # Gather the top items
-        top_items = torch.gather(
-            mips_items, 
-            dim=1, 
-            index=top_indices
-        )
+        top_items = torch.gather(mips_items, dim=1, index=top_indices)
 
         return top_items
 
@@ -221,7 +216,7 @@ class TwoTowerPlusLightRanker(TwoTowerWithDebiasing):
         item_id: torch.Tensor,  # [B]
         item_features: torch.Tensor,  # [B, II]
         position: torch.Tensor,  # [B]
-        labels: torch.Tensor  # [B, T]
+        labels: torch.Tensor,  # [B, T]
     ) -> float:
         """
         This function computes the loss during training.
@@ -254,11 +249,9 @@ class TwoTowerPlusLightRanker(TwoTowerWithDebiasing):
 
         # Compute the mips step loss
         # Compute the scores for every pair of user and item
-        mips_scores = torch.matmul(
-            mips_user_embedding, item_embeddings.t()
-        )  # [B, B]
+        mips_scores = torch.matmul(mips_user_embedding, item_embeddings.t())  # [B, B]
 
-        # You should either try to handle the popularity bias 
+        # You should either try to handle the popularity bias
         # of in-batch negatives using log-Q correction or
         # use random negatives. Mixed Negative Sampling paper suggests
         # random negatives is a better approach.
@@ -266,17 +259,14 @@ class TwoTowerPlusLightRanker(TwoTowerWithDebiasing):
 
         # Compute softmax loss
         mips_step_target = torch.arange(
-            mips_scores.shape[0], 
-            device=mips_scores.device
+            mips_scores.shape[0], device=mips_scores.device
         )  # [B]
-        # We are not reducing to mean since not every row in the batch is a 
+        # We are not reducing to mean since not every row in the batch is a
         # "positive" example. We are weighting the loss by the net_user_value
         # after this to give more weight to the positive examples and possibly
         # 0 weight to the hard-negative examples.
         mips_softmax_loss = F.cross_entropy(
-            input=mips_scores,
-            target=mips_step_target,
-            reduction="none"
+            input=mips_scores, target=mips_step_target, reduction="none"
         )  # [B]
 
         # Compute the weighted average of the labels using user_value_weights
@@ -286,17 +276,16 @@ class TwoTowerPlusLightRanker(TwoTowerWithDebiasing):
         # actually exactly 1 when the user engaged with the item and 0 otherwise.
         net_user_value = torch.matmul(labels, self.user_value_weights)  # [B]
 
-        # Optionally debias the net_user_value by the part explained purely 
+        # Optionally debias the net_user_value by the part explained purely
         # by position. Not implemented in this version. Hence net_user_value
         # is unchanged and additional_loss is 0.
         net_user_value, additional_loss = self.debias_net_user_value(
             net_user_value, position, mips_user_embedding
         )  # [B], [1]
 
-        # Floor by epsilon to only preserve positive net_user_value 
+        # Floor by epsilon to only preserve positive net_user_value
         net_user_value = torch.clamp(
-            net_user_value,
-            min=0.000001  # small epsilon to avoid divide by 0
+            net_user_value, min=0.000001  # small epsilon to avoid divide by 0
         )  # [B]
 
         # Compute the product of loss and net_user_value, so that rows with
@@ -307,12 +296,12 @@ class TwoTowerPlusLightRanker(TwoTowerWithDebiasing):
         mips_softmax_loss = mips_softmax_loss + additional_loss
 
         # Compute the light ranker loss
-            
+
         # Compute light ranker input
         # Dot product for each user embedding with each item embedding
         ranker_scores = torch.bmm(
             light_ranker_user_embeddings,  # [B, NU, DI]
-            item_embeddings.unsqueeze(2)  # [B, DI, 1]
+            item_embeddings.unsqueeze(2),  # [B, DI, 1]
         )  # [B, NU, 1]
         ranker_scores = ranker_scores.squeeze(2)  # [B, NU]
         # Convert to probabilities
@@ -320,13 +309,15 @@ class TwoTowerPlusLightRanker(TwoTowerWithDebiasing):
         # Compute weighted sum of user embeddings
         target_aware_user_embeddings = torch.bmm(
             ranker_probs.unsqueeze(1),  # [B, 1, NU]
-            light_ranker_user_embeddings  # [B, NU, DI]
+            light_ranker_user_embeddings,  # [B, NU, DI]
         )  # [B, 1, DI]
-        target_aware_user_embeddings = target_aware_user_embeddings.squeeze(1)  # [B, DI]
+        target_aware_user_embeddings = target_aware_user_embeddings.squeeze(
+            1
+        )  # [B, DI]
 
         # Take diagonal of mips_scores to get the relevance for impresed items
         mips_scores = torch.diag(mips_scores)  # [B]
-        # Concatenate 
+        # Concatenate
         # mips_item_emb to capture item specific info
         # target_aware_user_embeddings captures importance weights of each user embedding
         # scores to capture mutual info of each user embedding with item (~ Factoization Machines)
@@ -337,14 +328,13 @@ class TwoTowerPlusLightRanker(TwoTowerWithDebiasing):
                 target_aware_user_embeddings,  # [B, DI]
                 ranker_scores,  # [B, NU]
                 mips_scores.unsqueeze(1),  # [B, 1]
-            ], dim=2
+            ],
+            dim=2,
         )  # [B, 2 * DI + NU + 1]
 
         # 3. Compute pointwise immediate reward estimates for each of these items
         task_logits = self.light_ranker(concatenated_input)  # [B, T]
 
         # Compute binary cross entropy (BCE) loss with labels
-        light_ranker_bce_loss = F.binary_cross_entropy_with_logits(
-            task_logits, labels
-        )
+        light_ranker_bce_loss = F.binary_cross_entropy_with_logits(task_logits, labels)
         return mips_softmax_loss + light_ranker_bce_loss
