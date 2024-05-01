@@ -52,7 +52,9 @@ class TwoTowerBaseRetrieval(nn.Module):
         """
         super().__init__()
         self.num_items = num_items
-        self.user_value_weights = torch.tensor(user_value_weights)  # noqa TODO add device input.
+        # [T] dimensional vector describing how positive each label is.
+        # TODO add device input.
+        self.user_value_weights = torch.tensor(user_value_weights)
         self.mips_module = mips_module
 
         # Create a module to represent user preference by a table lookup.
@@ -127,9 +129,12 @@ class TwoTowerBaseRetrieval(nn.Module):
             user_id=user_id,
             user_features=user_features
         )  # [B, DU]
+
         # Process user features
         user_features_embedding = self.user_features_arch(user_features)  # [B, DU]
-        # Concatenate the inputs and pass them through a linear layer to compute the user embedding
+
+        # Concatenate the inputs. This will be used in future to compute
+        # the next user embedding.
         user_tower_input = torch.cat(
             [user_id_embedding, user_features_embedding], dim=1
         )
@@ -256,20 +261,25 @@ class TwoTowerBaseRetrieval(nn.Module):
 
         # You should either try to handle the popularity bias 
         # of in-batch negatives using log-Q correction or
-        # use random negatives. Mixed Negative Sampling paper suggests
-        # random negatives is a better approach.
-        # Here we are not implementing either due to time constraints.
+        # use random negatives.
+        # [Mixed Negative Sampling paper](https://research.google/pubs/mixed-negative-sampling-for-learning-two-tower-neural-networks-in-recommendations/)
+        # suggests random negatives is a better approach.
+        # Here we are restricting ourselves to in-batch negatives and we are
+        # not implementing either corrections due to time constraints.
 
         # Compute softmax loss
         # F.cross_entropy accepts target as 
         #   ground truth class indices or class probabilities;
         # Here we are using class indices
         target = torch.arange(scores.shape[0]).to(scores.device)  # [B]
-        # We are not reducing to mean since not every row in the batch is a 
-        # "positive" example. We are weighting the loss by the net_user_value
-        # after this to give more weight to the positive examples and possibly
-        # 0 weight to the hard-negative examples. Note that net_user_value is
-        # assumed to be non-negative.
+
+        # In the cross entropy computation below, we are not reducing
+        # to mean since not every row in the batch is a "positive" example.
+        # To only learn from positive examples, we are computing loss per row
+        # and then using per row weights. Specifically, we are weighting the
+        # loss by the net_user_value after this to give more weight to the
+        # positive examples and 0 weight to the hard-negative examples.
+        # Note that net_user_value is assumed to be non-negative.
         loss = F.cross_entropy(
             input=scores,
             target=target,
