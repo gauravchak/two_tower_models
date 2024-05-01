@@ -11,9 +11,7 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as F
 
-from src.two_tower_with_user_history_encoder import (
-    TwoTowerWithUserHistoryEncoder
-)
+from src.two_tower_with_user_history_encoder import TwoTowerWithUserHistoryEncoder
 
 
 class TwoTowerWithDebiasing(TwoTowerWithUserHistoryEncoder):
@@ -24,6 +22,7 @@ class TwoTowerWithDebiasing(TwoTowerWithUserHistoryEncoder):
     We do user debiasing similar to TwoTowerWithUserDebiasedWeights
     and position debiasing similar to TwoTowerWithPositionDebiasedWeights.
     """
+
     def __init__(
         self,
         num_items: int,
@@ -68,8 +67,7 @@ class TwoTowerWithDebiasing(TwoTowerWithUserHistoryEncoder):
         )
         # Create an embedding arch to process position
         self.position_bias_net_user_value = nn.Embedding(
-            num_embeddings=100,
-            embedding_dim=1
+            num_embeddings=100, embedding_dim=1
         )
         # Create an MLP to process user_embedding and position bias.
         self.user_debias_net_user_value = nn.Sequential(
@@ -94,43 +92,31 @@ class TwoTowerWithDebiasing(TwoTowerWithUserHistoryEncoder):
             Tuple[torch.Tensor, torch.Tensor]: A tuple containing the processed
                 net_user_value tensor and the loss tensor from estimating.
         """
-        E_nuv_position = self.position_bias_net_user_value(
-            position
-        )  # [B, 1]
+        E_nuv_position = self.position_bias_net_user_value(position)  # [B, 1]
 
         # Estimate net_user_value
         E_nuv_user = self.user_debias_net_user_value(
-            torch.cat(
-                [
-                    user_embedding,
-                    E_nuv_position
-                ],
-                dim=-1
-            )
-        ).squeeze(1)  # [B]
+            torch.cat([user_embedding, E_nuv_position], dim=-1)
+        ).squeeze(
+            1
+        )  # [B]
 
         # Compute MSE loss between net_user_value and E_nuv_user
         E_nuv_position_loss = F.mse_loss(
-            input=E_nuv_position,
-            target=net_user_value,
-            reduction="sum"
+            input=E_nuv_position, target=net_user_value, reduction="sum"
         )  # [1]
 
         # Compute MSE loss between net_user_value and E_nuv_user
         E_nuv_user_loss = F.mse_loss(
-            input=E_nuv_user,
-            target=net_user_value,
-            reduction="sum"
+            input=E_nuv_user, target=net_user_value, reduction="sum"
         )  # [1]
 
         # Ensure that estimated_net_user_value is positive
         E_nuv_user = torch.clamp(
-            E_nuv_user,
-            min=1e-1  # Small positive number, choose as per your data
+            E_nuv_user, min=1e-1  # Small positive number, choose as per your data
         )  # [B]
 
         # Compute the net_user_value without user bias
         net_user_value = net_user_value / E_nuv_user
 
         return net_user_value, E_nuv_user_loss + E_nuv_position_loss
-
