@@ -35,9 +35,7 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as F
 
-from src.two_tower_with_user_history_encoder import (
-    TwoTowerWithUserHistoryEncoder
-)
+from src.two_tower_with_user_history_encoder import TwoTowerWithUserHistoryEncoder
 
 
 class TwoTowerWithUserDebiasedWeights(TwoTowerWithUserHistoryEncoder):
@@ -50,6 +48,7 @@ class TwoTowerWithUserDebiasedWeights(TwoTowerWithUserHistoryEncoder):
     we devide net_user_value by the estimated net_user_value to get the
     user-debiased net_user_value.
     """
+
     def __init__(
         self,
         num_items: int,
@@ -119,19 +118,18 @@ class TwoTowerWithUserDebiasedWeights(TwoTowerWithUserHistoryEncoder):
         # Estimate net_user_value from user_embedding
         estimated_net_user_value = self.user_debias_net_user_value(
             user_embedding
-        ).squeeze(1)  # [B]
+        ).squeeze(
+            1
+        )  # [B]
         # Ensure that estimated_net_user_value is positive
         estimated_net_user_value = torch.clamp(
             estimated_net_user_value,
-            min=1e-1  # Small positive number, choose as per your data
+            min=1e-1,  # Small positive number, choose as per your data
         )  # [B]
         # Compute MSE loss between net_user_value and estimated_net_user_value
         estimated_net_user_value_loss = F.mse_loss(
-            input=estimated_net_user_value,
-            target=net_user_value,
-            reduction="sum"
+            input=estimated_net_user_value, target=net_user_value, reduction="sum"
         )  # [1]
         # Compute the net_user_value without user bias
         net_user_value = net_user_value / estimated_net_user_value
         return net_user_value, estimated_net_user_value_loss
-
