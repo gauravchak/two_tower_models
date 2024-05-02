@@ -16,11 +16,14 @@ from src.two_tower_with_user_history_encoder import TwoTowerWithUserHistoryEncod
 
 class TwoTowerWithPositionDebiasedWeights(TwoTowerWithUserHistoryEncoder):
     """
-    This derives from TwoTowerWithUserHistoryEncoder and adds position debiasing to the example weights.
+    This derives from TwoTowerWithUserHistoryEncoder and adds position debiasing to
+    the example weights. If you recall during training of two tower models we would
+    compute softmax loss from all data points but then we would multiply the loss
+    with an example level non-negative weight "net_user_value". This is expected to
+    be 0 for hard negatives. This is how we in effect only learn from positives.
 
-    This is a specific example of what you can do in terms of modifying the weights.
-    There is a lot more to try here. Softmax loss unfortunately is very sensitive to
-    how you are defining the positives. Hence, such experimentation is high ROI.
+    Softmax loss unfortunately is very sensitive to how you are defining positives.
+    Even a little allocation of positive weight to random items can hurt performance.
     """
 
     def __init__(
@@ -88,12 +91,13 @@ class TwoTowerWithPositionDebiasedWeights(TwoTowerWithUserHistoryEncoder):
             Tuple[torch.Tensor, torch.Tensor]: A tuple containing the processed
                 net_user_value tensor and the position_bias_loss tensor.
         """
-        # Optionally debias the net_user_value by the part explained purely by position
+        # Estimate the part of user value that is explained purely by position.
         estimated_net_user_value = self.position_bias_net_user_value(position).squeeze(
             1
         )  # [B]
 
         # Compute MSE loss between net_user_value and estimated_net_user_value
+        # The gradient from this loss will help to train position_bias_net_user_value
         estimated_net_user_value_loss = F.mse_loss(
             input=estimated_net_user_value, target=net_user_value, reduction="sum"
         )  # [1]
@@ -101,7 +105,7 @@ class TwoTowerWithPositionDebiasedWeights(TwoTowerWithUserHistoryEncoder):
         # Ensure that estimated_net_user_value is positive
         estimated_net_user_value = torch.clamp(
             estimated_net_user_value,
-            min=1e-1,  # Small positive number, choose as per your data
+            min=1e-3,  # Small positive number, choose as per your data
         )  # [B]
 
         # Compute the net_user_value without position bias

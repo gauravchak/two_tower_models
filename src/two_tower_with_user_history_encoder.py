@@ -66,6 +66,7 @@ class TwoTowerWithUserHistoryEncoder(TwoTowerBaseRetrieval):
             history_len=user_history_seqlen,
             num_attention_heads=4,
             num_attention_layers=3,
+            use_positional_encoding=True,
         )
 
         user_history_output_dim = self.user_history_encoder.get_output_dim()

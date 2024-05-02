@@ -21,20 +21,37 @@ class UserHistoryEncoder(nn.Module):
         history_len: int,
         num_attention_heads: int,
         num_attention_layers: int,
+        use_positional_encoding: bool,
     ) -> None:
         super().__init__()
         self.item_id_embedding_dim = item_id_embedding_dim
         self.history_len = history_len
         self.num_attention_heads = num_attention_heads
         self.num_attention_layers = num_attention_layers
+        self.use_positional_encoding = use_positional_encoding
 
         # Create positional embeddings of shape [H, DI]
-        self.positional_embeddings = self.positional_encoding(
-            seq_len=history_len, d_model=item_id_embedding_dim
-        )
-        # Reverse the positional encodings since in the user history we
-        # using this for, the newest item is at the beginning of the sequence.
-        self.positional_embeddings = self.positional_embeddings.flip([0])
+        if self.use_positional_encoding:
+            self.positional_embeddings = self.positional_encoding(
+                seq_len=history_len, d_model=item_id_embedding_dim
+            )
+            # The purpose of flipping the positional embeddings below is to match
+            # the assumption made about the user history sequence. In the comments,
+            # it's mentioned that the newest item in the user history sequence is
+            # assumed to be at the beginning of the sequence. However, positional
+            # encodings are typically designed with the assumption that the first
+            # position corresponds to the earliest item in the sequence.
+            # By flipping the positional embeddings, the model aligns the positional
+            # encoding with the assumption about the user history sequence, ensuring
+            # that the positional encoding reflects the correct position of each
+            # item in the sequence. Without flipping, the positional encoding might
+            # assign higher weights to the earliest positions, which would be
+            # incorrect given the assumption about the sequence order.
+            # In summary, flipping the positional embeddings ensures that the
+            # positional encoding correctly reflects the position of each item in
+            # the user history sequence, aligning with the assumption that the
+            # newest item is at the beginning of the sequence.
+            self.positional_embeddings = self.positional_embeddings.flip([0])
 
         # Create the multi-head attention module
         # Note: PyTorch's MultiheadAttention expects input shape
@@ -71,10 +88,11 @@ class UserHistoryEncoder(nn.Module):
         # Get mean pooling of the history
         mean_pooled_history_encoding = torch.mean(user_history, dim=1)  # [B, DI]
 
-        # Add positional encodings to history embeddings
-        # Since positional encodings are [H, DI] and history embeddings are [B, H, DI]
-        # we need to unsqueeze the positional embeddings to [1, H, DI] and add them
-        user_history = user_history + self.positional_embeddings.unsqueeze(0)
+        if self.use_positional_encoding:
+            # Add positional encodings to history embeddings
+            # Since positional encodings are [H, DI] and history embeddings are [B, H, DI]
+            # we need to unsqueeze the positional embeddings to [1, H, DI] and add them
+            user_history = user_history + self.positional_embeddings.unsqueeze(0)
 
         # Compute multi-head attention
         # Note: PyTorch's MultiheadAttention returns attn_output and

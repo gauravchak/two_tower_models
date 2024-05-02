@@ -82,6 +82,11 @@ class TwoTowerWithDebiasing(TwoTowerWithUserHistoryEncoder):
     ) -> Tuple[torch.Tensor, torch.Tensor]:
         """
         Returns the processed net_user_value and any losses to be added to the loss function.
+        The way this is implemented is:
+        - We use position to come up with an estimate of user value: E_nuv_position
+        - We use an NN arch to model user value using user_embedding from the user
+            tower and E_nuv_position. This cumulative user value estimate is
+            E_nuv_user.
 
         Args:
             net_user_value (torch.Tensor): The input net_user_value tensor [B].
@@ -113,10 +118,12 @@ class TwoTowerWithDebiasing(TwoTowerWithUserHistoryEncoder):
 
         # Ensure that estimated_net_user_value is positive
         E_nuv_user = torch.clamp(
-            E_nuv_user, min=1e-1  # Small positive number, choose as per your data
+            E_nuv_user, min=1e-3  # Small positive number, choose as per your data
         )  # [B]
 
         # Compute the net_user_value without user bias
+        # Since net_user_value >= 0
+        # dividing by E_nuv_user maintains the invariant net_user_value >= 0
         net_user_value = net_user_value / E_nuv_user
 
         return net_user_value, E_nuv_user_loss + E_nuv_position_loss

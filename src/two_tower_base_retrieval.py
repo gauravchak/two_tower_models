@@ -244,6 +244,10 @@ class TwoTowerBaseRetrieval(nn.Module):
     ) -> Tuple[torch.Tensor, torch.Tensor]:
         """Returns the processed net_user_value and any losses to be added
         to the loss function.
+        The idea here is to model the user value as a function of purely
+        user and context features. This way the user and item interaction
+        can be tasked to only predict what is incremental over what could
+        have been predicted using user and position (context).
 
         Args:
             net_user_value (torch.Tensor): The net user value tensor [B].
