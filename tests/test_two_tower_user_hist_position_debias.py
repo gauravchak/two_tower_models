@@ -1,11 +1,11 @@
 import torch
 import unittest
 
-from src.two_tower_base_retrieval import TwoTowerBaseRetrieval
+from src.two_tower_with_position_debiased_weights import TwoTowerWithPositionDebiasedWeights
 from src.baseline_mips_module import BaselineMIPSModule
 
 
-class TestTwoTowerBaseRetrieval(unittest.TestCase):
+class TestTwoTowerWithPositionDebiasedWeights(unittest.TestCase):
     def setUp(self):
         self.num_items = 10
         self.user_id_hash_size = 100
@@ -22,11 +22,12 @@ class TestTwoTowerBaseRetrieval(unittest.TestCase):
             corpus_size=self.corpus_size, embedding_dim=self.item_id_embedding_dim
         )
 
-        self.candidate_generator = TwoTowerBaseRetrieval(
+        self.candidate_generator: TwoTowerWithPositionDebiasedWeights = TwoTowerWithPositionDebiasedWeights(
             num_items=self.num_items,
             user_id_hash_size=self.user_id_hash_size,
             user_id_embedding_dim=self.user_id_embedding_dim,
             user_features_size=self.user_features_size,
+            user_history_seqlen=self.user_history_seqlen,
             item_id_hash_size=self.item_id_hash_size,
             item_id_embedding_dim=self.item_id_embedding_dim,
             item_features_size=self.item_features_size,
@@ -75,7 +76,6 @@ class TestTwoTowerBaseRetrieval(unittest.TestCase):
         labels = torch.randint(
             0, 2, (self.batch_size, self.tasknum), dtype=torch.float32
         )  # binary
-
         # Compute the loss using the train_forward method
         loss = self.candidate_generator.train_forward(
             self.user_id,

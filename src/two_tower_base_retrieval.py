@@ -69,18 +69,17 @@ class TwoTowerBaseRetrieval(nn.Module):
         self.user_features_arch = nn.Sequential(
             nn.Linear(user_features_size, 256),
             nn.ReLU(),
-            nn.Linear(256, user_id_embedding_dim)
+            nn.Linear(256, user_id_embedding_dim),
         )
         # 3. Create an arch to process the user_tower_input
-        # Input dimension = 
+        # Input dimension =
         #   user_id_embedding_dim from get_user_embedding
         #   user_id_embedding_dim from user_features_arch
         # Output dimension = item_id_embedding_dim
         # The output of this arch will be used for MIPS module.
         # Hence this needs to be same as the item tower output.
         self.user_tower_arch = nn.Linear(
-            2 * user_id_embedding_dim,
-            item_id_embedding_dim
+            2 * user_id_embedding_dim, item_id_embedding_dim
         )
 
         # Create the archs for item tower
@@ -92,12 +91,12 @@ class TwoTowerBaseRetrieval(nn.Module):
         self.item_features_arch = nn.Sequential(
             nn.Linear(item_features_size, 256),
             nn.ReLU(),
-            nn.Linear(256, item_id_embedding_dim)
+            nn.Linear(256, item_id_embedding_dim),
         )
         # 3. Create an arch to process the item_tower_input
         self.item_tower_arch = nn.Linear(
             in_features=2 * item_id_embedding_dim,  # concat id and features
-            out_features=item_id_embedding_dim
+            out_features=item_id_embedding_dim,
         )
 
     def get_user_embedding(
@@ -137,8 +136,7 @@ class TwoTowerBaseRetrieval(nn.Module):
             torch.Tensor: Shape: [B, 2 * DU]
         """
         user_id_embedding = self.get_user_embedding(
-            user_id=user_id,
-            user_features=user_features
+            user_id=user_id, user_features=user_features
         )  # [B, DU]
 
         # Process user features
@@ -169,7 +167,7 @@ class TwoTowerBaseRetrieval(nn.Module):
                 a fixed length, but in practice you will probably want to support variable
                 length histories. jagged tensors are a good way to do this.
                 This is NOT USED in this implementation. It is handled in a follow on derived class.
-        
+
         Returns:
             torch.Tensor: Tensor containing query user embeddings. Shape: [B, DI]
         """
@@ -231,8 +229,7 @@ class TwoTowerBaseRetrieval(nn.Module):
         )
         # Query the mips module to get the top num_items items and their embeddings
         top_items, _, _ = self.mips_module(
-            query_embedding=user_embedding, 
-            num_items=self.num_items
+            query_embedding=user_embedding, num_items=self.num_items
         )  # Returns indices [B, num_items], scores, embeddings
         return top_items
 
@@ -269,12 +266,12 @@ class TwoTowerBaseRetrieval(nn.Module):
         user_embedding: torch.Tensor,  # [B, DI]
         item_embeddings: torch.Tensor,  # [B, DI]
         position: torch.Tensor,  # [B]
-        labels: torch.Tensor  # [B, T]
+        labels: torch.Tensor,  # [B, T]
     ) -> torch.Tensor:
         # Compute the scores for every pair of user and item
         scores = torch.matmul(user_embedding, item_embeddings.t())  # [B, B]
 
-        # You should either try to handle the popularity bias 
+        # You should either try to handle the popularity bias
         # of in-batch negatives using log-Q correction or
         # use random negatives.
         # [Mixed Negative Sampling paper](https://research.google/pubs/mixed-negative-sampling-for-learning-two-tower-neural-networks-in-recommendations/)
@@ -283,7 +280,7 @@ class TwoTowerBaseRetrieval(nn.Module):
         # not implementing either corrections due to time constraints.
 
         # Compute softmax loss
-        # F.cross_entropy accepts target as 
+        # F.cross_entropy accepts target as
         #   ground truth class indices or class probabilities;
         # Here we are using class indices
         target = torch.arange(scores.shape[0]).to(scores.device)  # [B]
@@ -295,11 +292,7 @@ class TwoTowerBaseRetrieval(nn.Module):
         # loss by the net_user_value after this to give more weight to the
         # positive examples and 0 weight to the hard-negative examples.
         # Note that net_user_value is assumed to be non-negative.
-        loss = F.cross_entropy(
-            input=scores,
-            target=target,
-            reduction="none"
-        )  # [B]
+        loss = F.cross_entropy(input=scores, target=target, reduction="none")  # [B]
 
         # Compute the weighted average of the labels using user_value_weights
         # In the simplest case, assume you have a single label per item.
@@ -308,7 +301,7 @@ class TwoTowerBaseRetrieval(nn.Module):
         # the user has engaged with the item and 0 otherwise.
         net_user_value = torch.matmul(labels, self.user_value_weights)  # [B]
 
-        # Optionally debias the net_user_value by the part explained purely 
+        # Optionally debias the net_user_value by the part explained purely
         # by position. Not implemented in this version. Hence net_user_value
         # is unchanged and additional_loss is 0.
         net_user_value, additional_loss = self.debias_net_user_value(
@@ -317,10 +310,9 @@ class TwoTowerBaseRetrieval(nn.Module):
             user_embedding=user_embedding,
         )  # [B], [1]
 
-        # Floor by epsilon to only preserve positive net_user_value 
+        # Floor by epsilon to only preserve positive net_user_value
         net_user_value = torch.clamp(
-            net_user_value,
-            min=0.000001  # small epsilon to avoid divide by 0
+            net_user_value, min=0.000001  # small epsilon to avoid divide by 0
         )  # [B]
         # Normalize net_user_value by the max value of it in batch.
         # This is to ensure that the net_user_value is between 0 and 1.
@@ -342,7 +334,7 @@ class TwoTowerBaseRetrieval(nn.Module):
         item_id: torch.Tensor,  # [B]
         item_features: torch.Tensor,  # [B, II]
         position: torch.Tensor,  # [B]
-        labels: torch.Tensor  # [B, T]
+        labels: torch.Tensor,  # [B, T]
     ) -> float:
         """
         This function computes the loss during training.
@@ -373,6 +365,10 @@ class TwoTowerBaseRetrieval(nn.Module):
             item_id, item_features
         )  # [B, DI]
 
-        loss = self.compute_training_loss(user_embedding, item_embeddings, position=position, labels=labels)
+        loss = self.compute_training_loss(
+            user_embedding=user_embedding,
+            item_embeddings=item_embeddings,
+            position=position,
+            labels=labels,
+        )
         return loss  # ()
-
