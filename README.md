@@ -9,7 +9,10 @@ This shows a sample implementation of two tower models in PyTorch.
 
 ### [user_history_encoder.py](./src/user_history_encoder.py)
 
-This is text-book implementation of self attention and positional encodings to summarize user history for the user tower.
+While the base implementation does a good job of encoding causality based on user features and what is specific to the user's interests, it does not learn what can be inferred from user history. In this file we build a module to encode user history. We encode using both mean-pooling and stacked self attention.
+In practise, you might need a preprocessing layer that combines multiple types of interactions, depicted here as the green series "L_{i}" and the blue series "K_{i}".
+In the history encoding youy could have a NN module that takes the differnt interactions, presumably each of those being boolean and represented as an action embedding, and the item embedding and emits a combined embedding, depicted as the purple "C_{i}" series. This is what we apply mean-pooling and self attention on top of.
+
 ![user_history_encoder](./images/user_history_encoder.png)
 
 ### [two_tower_with_user_history_encoder.py](./src/two_tower_with_user_history_encoder.py)
