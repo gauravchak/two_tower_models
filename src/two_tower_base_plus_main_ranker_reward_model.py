@@ -59,6 +59,7 @@ class TwoTowerWithMainRankerReward(TwoTowerWithDebiasing):
             mips_module=mips_module,
         )
         # Train a proxy ranker
+        simple_ranker = nn.Linear(2 * item_id_embedding_dim + 1, len(user_value_weights))
 
     def train_forward(
         self,
@@ -98,11 +99,22 @@ class TwoTowerWithMainRankerReward(TwoTowerWithDebiasing):
         item_embeddings = self.compute_item_embeddings(
             item_id, item_features
         )  # [B, DI]
-        loss = super().compute_training_loss(user_embedding, item_embeddings, position=position, labels=labels)
 
-        # Compute per task logits [T, B] and loss [B] for proxy ranker
+        # Compute the regular softmax loss with user-positives
+        # and examples weighted by net_user_value that is debiased by position
+        # and user features.
+        loss = super().compute_training_loss(
+            user_embedding,
+            item_embeddings,
+            position=position,
+            labels=labels
+        )
 
-        # Compute ranker logits [T, B, X] for impressed and unimpressed items.
+        # Compute an alignment loss using a proxy ranker as a reward model.
+
+        # Compute per task logits [T, B, B] and loss [B] for proxy ranker
+
+        # Compute ranker logits [T, B, B] for impressed and unimpressed items.
         # Convert to ranker_vm_score [B, X] using user_value_weights
         # Using F.softmax convert ranker_vm_score into a probability of ranker
         # showing item at top.

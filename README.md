@@ -2,26 +2,25 @@
 
 This is companion repository to [two tower models](https://recsysml.substack.com/p/two-tower-models-for-retrieval-of), a commonly used approach to retrieval / candidate generation in recommender systems. The goal of this repository is to show how to increase the alignment of retrieval with ranking.
 
-![two_tower_schematic](./images/two_tower_schematic.png)
-
-
 ## [two_tower_base_retrieval.py](./src/two_tower_base_retrieval.py)
 
 This shows a sample implementation of two tower models in PyTorch.
+![impl_two_tower_base_retrieval](./images/impl_two_tower_base_retrieval.png)
 
 ### [user_history_encoder.py](./src/user_history_encoder.py)
 
-This is text-book implementation of self attention and positional encodings to summarise user history for the user tower.
+This is text-book implementation of self attention and positional encodings to summarize user history for the user tower.
+![user_history_encoder](./images/user_history_encoder.png)
 
 ### [two_tower_with_user_history_encoder.py](./src/two_tower_with_user_history_encoder.py)
 
 This uses the UserHistoryEncoder above to add to the user tower.
 
-### [two_tower_with_position_debiased_weights.py](./src/two_tower_with_position_debiased_weights.py)
+### [two_tower_with_debiasing.py](./src/two_tower_with_debiasing.py)
 
-Since we are using net user value to estimate the relevance, this uses a weighting approach to 
-position debiasing. There are other approaches as well like logit debiasing via shallow tower
-that we recommend trying out.
+Since we are using net user value to estimate the relevance, isolating the part of the user value that is truly impacted by the item by removing the part explained by position and user value helps to get a clean signal.
+
+![debiasing_the_label_of_two_tower_models](./images/debiasing_the_label_of_two_tower_models.png)
 
 ## [two_tower_plus_light_ranker.py](./src/two_tower_plus_light_ranker.py)
 
@@ -47,6 +46,7 @@ This is a helper file with a matrix multiplication approach to maximum inner pro
 This helps us in having a PyTorch implementation to write tests on.
 
 # References
+
 1. [Seminal paper on two tower models in Youtube](https://static.googleusercontent.com/media/research.google.com/en//pubs/archive/45530.pdf)
 
 ------
