@@ -1,4 +1,4 @@
-"""A sample implementation of Maximum Inner Product Search (MIPS) using PyTorch.
+"""Basic Maximum Inner Product Search (MIPS) using PyTorch.
 """
 
 from typing import Tuple
@@ -9,9 +9,9 @@ import torch.nn as nn
 
 class BaselineMIPSModule(nn.Module):
     def __init__(
-        self, 
-        corpus_size:int, 
-        embedding_dim:int
+        self,
+        corpus_size: int,
+        embedding_dim: int,
     ) -> None:
         """
         Initialize the BaselineMIPSModule.
@@ -40,20 +40,24 @@ class BaselineMIPSModule(nn.Module):
         and not just MIPS indices.
 
         Args:
-            query_embedding (torch.Tensor): The user embedding tensor of shape [B, DU].
+            query_embedding (torch.Tensor): The user embedding tensor of shape
+                [B, DU].
             num_items (int): (NI) The number of items.
 
         Returns:
-            torch.Tensor: The MIPS ids tensor of shape [B, NI] and embeddings tensor of shape [B, NI, DI].
+            torch.Tensor:
+                The MIPS ids tensor of shape [B, NI]
+                The MIPS scores tensor of shape [B, NI]
+                The MIPS embeddings tensor of shape [B, NI, DI]
         """
         # Find the top NI items in the corpus using torch.topk
         # Note: torch.topk returns a tuple of (values, indices)
         #   dots: [B, NI]
         #   indices: [B, NI]
         mips_scores, indices = torch.topk(
-            torch.matmul(query_embedding, self.corpus.T), 
-            k=num_items, 
-            dim=1
+            torch.matmul(query_embedding, self.corpus.T),
+            k=num_items,
+            dim=1,
         )
         # Expand indices to create a 3D tensor [B, num_items, 1]
         expanded_indices = indices.unsqueeze(2)
@@ -64,5 +68,5 @@ class BaselineMIPSModule(nn.Module):
         # Squeeze to remove the extra dimension
         embeddings = embeddings.squeeze(2)
 
-        # Return indices, mips_scores, and embeddings
+        # Return indices [B, NI], mips_scores [B, NI], embeddings [B, NI, DI]
         return indices, mips_scores, embeddings
