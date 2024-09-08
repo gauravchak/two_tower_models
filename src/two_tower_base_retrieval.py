@@ -1,16 +1,17 @@
 """
-This is a baseline implementation of a two-tower based candidate generator (retrieval)
-in a recommender system.
+This is a baseline implementation of a two-tower based candidate generator
+(retrieval) in a recommender system.
 Ref: https://recsysml.substack.com/p/two-tower-models-for-retrieval-of
 
-In training we create a user embedding from user features. In this example, we are
-ignoring user history features. They will be handled in a follow on derived class.
-We compute item embeddings for the items in the batch and use the user embedding
-and item embeddings to compute a softmax loss. We assume the training data comprises
-of all items impressed by the user. Hence it includes both positive and hard negatives.
-We weight the loss by the net_user_value, which is a linear combination of point-wise
-immediate rewards. Hence the loss is effectively derived only from the "positives", as
-is assumed in two-tower models.
+In training we create a user embedding from user features. In this example, we
+are ignoring user history features. They will be handled in a follow on derived
+class. We compute item embeddings for the items in the batch and use the user
+embedding and item embeddings to compute a softmax loss. We assume the training
+data comprises of all items impressed by the user. Hence it includes both
+positive and hard negatives. We weight the loss by the net_user_value, which
+is a linear combination of point-wise immediate rewards. Hence the loss is
+effectively derived only from the "positives", as is assumed in two-tower
+models.
 """
 
 from typing import List, Tuple
@@ -22,6 +23,8 @@ from src.baseline_mips_module import BaselineMIPSModule
 
 
 class TwoTowerBaseRetrieval(nn.Module):
+    """Two-tower model for candidate retrieval in recommender systems."""
+
     def __init__(
         self,
         num_items: int,
@@ -35,6 +38,8 @@ class TwoTowerBaseRetrieval(nn.Module):
         mips_module: BaselineMIPSModule,
     ) -> None:
         """
+        Initialize the TwoTowerBaseRetrieval model.
+
         params:
             num_items: the number of items to return per user/query
             user_id_hash_size: the size of the embedding table for users
@@ -43,12 +48,12 @@ class TwoTowerBaseRetrieval(nn.Module):
             item_id_hash_size: the size of the embedding table for items
             item_id_embedding_dim (DI): internal dimension
             item_features_size: (II) input feature size for items
-            cross_features_size: (IC) size of cross features
             user_value_weights: T dimensional weights, such that a linear
-                combination of point-wise immediate rewards is the best predictor
-                of long term user satisfaction.
-            mips_module: a module that computes the Maximum Inner Product Search (MIPS)
-                over the item embeddings given the user embedding.
+                combination of point-wise immediate rewards is the best
+                predictor of long term user satisfaction.
+            mips_module: a module that computes the Maximum Inner Product
+                Search (MIPS) over the item embeddings given the user
+                embedding.
         """
         super().__init__()
         self.num_items = num_items
@@ -65,7 +70,9 @@ class TwoTowerBaseRetrieval(nn.Module):
         self.user_id_embedding_arch = nn.Embedding(
             user_id_hash_size, user_id_embedding_dim
         )
-        # 2. Create an arch to process the user_features
+        # 2. Create an arch to process the user_features. We are using one
+        # hidden layer of 256 dimensions. This is just a reasonable default.
+        # You can experiment with other architectures.
         self.user_features_arch = nn.Sequential(
             nn.Linear(user_features_size, 256),
             nn.ReLU(),
@@ -73,13 +80,16 @@ class TwoTowerBaseRetrieval(nn.Module):
         )
         # 3. Create an arch to process the user_tower_input
         # Input dimension =
-        #   user_id_embedding_dim from get_user_embedding
-        #   user_id_embedding_dim from user_features_arch
+        #   user_id_embedding_dim from get_user_embedding,
+        #      essentially based on user_id
+        #   + user_id_embedding_dim from user_features_arch,
+        #      essentially based on user_features
         # Output dimension = item_id_embedding_dim
         # The output of this arch will be used for MIPS module.
-        # Hence this needs to be same as the item tower output.
+        # Hence the output dimension needs to be same as the item tower output.
         self.user_tower_arch = nn.Linear(
-            2 * user_id_embedding_dim, item_id_embedding_dim
+            in_features=2 * user_id_embedding_dim,
+            out_features=item_id_embedding_dim,
         )
 
         # Create the archs for item tower
@@ -140,7 +150,9 @@ class TwoTowerBaseRetrieval(nn.Module):
         )  # [B, DU]
 
         # Process user features
-        user_features_embedding = self.user_features_arch(user_features)  # [B, DU]
+        user_features_embedding = self.user_features_arch(
+            user_features
+        )  # [B, DU]
 
         # Concatenate the inputs. This will be used in future to compute
         # the next user embedding.
@@ -197,7 +209,8 @@ class TwoTowerBaseRetrieval(nn.Module):
         item_id_embedding = self.item_id_embedding_arch(item_id)
         # Process item features
         item_features_embedding = self.item_features_arch(item_features)
-        # Concatenate the inputs and pass them through a linear layer to compute the item embedding
+        # Concatenate the inputs and pass them through item_tower_arch to
+        # compute the item embedding.
         item_tower_input = torch.cat(
             [item_id_embedding, item_features_embedding], dim=1
         )
@@ -227,10 +240,12 @@ class TwoTowerBaseRetrieval(nn.Module):
         user_embedding = self.compute_user_embedding(
             user_id, user_features, user_history
         )
-        # Query the mips module to get the top num_items items and their embeddings
+        # Query the mips module to get the top num_items items and their
+        # embeddings. The embeddings aren't strictly necessary in the base
+        # implementation.
         top_items, _, _ = self.mips_module(
             query_embedding=user_embedding, num_items=self.num_items
-        )  # Returns indices [B, num_items], scores, embeddings
+        )  # indices [B, num_items], mips_scores [B, NI], embeddings [B, NI, DI]  # noqa
         return top_items
 
     def debias_net_user_value(
@@ -274,7 +289,7 @@ class TwoTowerBaseRetrieval(nn.Module):
         # You should either try to handle the popularity bias
         # of in-batch negatives using log-Q correction or
         # use random negatives.
-        # [Mixed Negative Sampling paper](https://research.google/pubs/mixed-negative-sampling-for-learning-two-tower-neural-networks-in-recommendations/)
+        # [Mixed Negative Sampling paper](https://research.google/pubs/mixed-negative-sampling-for-learning-two-tower-neural-networks-in-recommendations/)  noqa
         # suggests random negatives is a better approach.
         # Here we are restricting ourselves to in-batch negatives and we are
         # not implementing either corrections due to time constraints.
@@ -292,7 +307,9 @@ class TwoTowerBaseRetrieval(nn.Module):
         # loss by the net_user_value after this to give more weight to the
         # positive examples and 0 weight to the hard-negative examples.
         # Note that net_user_value is assumed to be non-negative.
-        loss = F.cross_entropy(input=scores, target=target, reduction="none")  # [B]
+        loss = F.cross_entropy(
+            input=scores, target=target, reduction="none"
+        )  # [B]
 
         # Compute the weighted average of the labels using user_value_weights
         # In the simplest case, assume you have a single label per item.
