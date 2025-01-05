@@ -19,7 +19,8 @@ class TestTwoTowerBaseRetrieval(unittest.TestCase):
         self.user_history_seqlen: int = 128
         self.corpus_size: int = 1001
         self.mips_module = BaselineMIPSModule(
-            corpus_size=self.corpus_size, embedding_dim=self.item_id_embedding_dim
+            corpus_size=self.corpus_size,
+            embedding_dim=self.item_id_embedding_dim,
         )
 
         self.candidate_generator = TwoTowerBaseRetrieval(
@@ -35,10 +36,16 @@ class TestTwoTowerBaseRetrieval(unittest.TestCase):
         )
 
         self.batch_size = 32
-        self.user_id = torch.randint(0, self.user_id_hash_size, (self.batch_size,))
-        self.user_features = torch.randn(self.batch_size, self.user_features_size)
+        self.user_id = torch.randint(
+            0, self.user_id_hash_size, (self.batch_size,)
+        )
+        self.user_features = torch.randn(
+            self.batch_size, self.user_features_size
+        )
         self.user_history = torch.randint(
-            low=0, high=self.num_items, size=(self.batch_size, self.user_history_seqlen)
+            low=0,
+            high=self.num_items,
+            size=(self.batch_size, self.user_history_seqlen),
         )
 
     def test_forward_pass(self):
@@ -58,20 +65,29 @@ class TestTwoTowerBaseRetrieval(unittest.TestCase):
         self.assertTrue(torch.all(item_recommendations >= 0))
         self.assertTrue(
             torch.all(
-                item_recommendations < self.candidate_generator.mips_module.corpus_size
+                item_recommendations
+                < self.candidate_generator.mips_module.corpus_size
             )
         )
 
     def test_train_forward(self):
         self.batch_size = 32
-        self.user_id = torch.randint(0, self.user_id_hash_size, (self.batch_size,))
-        self.user_features = torch.randn(self.batch_size, self.user_features_size)
+        self.user_id = torch.randint(
+            0, self.user_id_hash_size, (self.batch_size,)
+        )
+        self.user_features = torch.randn(
+            self.batch_size, self.user_features_size
+        )
         self.user_history = torch.randint(
-            low=0, high=self.num_items, size=(self.batch_size, self.user_history_seqlen)
+            low=0,
+            high=self.num_items,
+            size=(self.batch_size, self.user_history_seqlen),
         )
         item_id = torch.randint(0, self.item_id_hash_size, (self.batch_size,))
         item_features = torch.randn(self.batch_size, self.item_features_size)
-        position = torch.randint(0, 100, (self.batch_size,))  # Assuming position range
+        position = torch.randint(
+            0, 100, (self.batch_size,)
+        )  # Assuming position range
         labels = torch.randint(
             0, 2, (self.batch_size, self.tasknum), dtype=torch.float32
         )  # binary
