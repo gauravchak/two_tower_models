@@ -98,7 +98,9 @@ def train_one_epoch(model, dataloader, optimizer, device):
         positions = positions.to(device)
         labels = labels.to(device)
 
-        # Forward + compute loss
+        # The train_forward function is where the model authors can define
+        # the loss computation. They would typically call the forward function
+        # and compute the loss based on the output and the labels.
         batch_loss = model.train_forward(
             user_ids,
             user_features,
@@ -114,6 +116,11 @@ def train_one_epoch(model, dataloader, optimizer, device):
         batch_loss.backward()
         optimizer.step()
 
+        # Perform any update steps here that are separate from backprop.
+        # For example, user_emb = beta * item_emb + (1-beta) * user_emb
+        # from https://arxiv.org/abs/2403.18227
+
+        # Accumulate loss
         total_loss += batch_loss.item()
 
     avg_loss = total_loss / len(dataloader)
@@ -132,7 +139,7 @@ def main(args):
     item_id_hash_size: int = 1024
     item_id_embedding_dim: int = 32
     item_features_size: int = 30
-    tasknum: int = 1
+    # tasknum: int = 1 # Not used in this example
     num_items_in_corpus: int = args.num_items
     mips_module = BaselineMIPSModule(
         corpus_size=num_items_in_corpus, embedding_dim=item_id_embedding_dim
