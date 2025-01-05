@@ -29,7 +29,14 @@ class DummyRecDataset(Dataset):
       - labels
     """
 
-    def __init__(self, num_samples, num_users, num_items, feature_dim=8):
+    def __init__(
+        self,
+        num_samples: int,
+        num_users: int,
+        num_items: int,
+        feature_dim: int,
+        user_history_seqlen: int,
+    ):
         super().__init__()
         self.num_samples = num_samples
         self.num_users = num_users
@@ -47,10 +54,11 @@ class DummyRecDataset(Dataset):
             0, 2, (num_samples,)
         ).float()  # [num_samples] values: 0 or 1
 
-        # For demonstration, let's just generate random features, history, positions
+        # For demonstration, let's just generate random features, history, etc.
         self.user_features = torch.randn(num_samples, feature_dim)
-        # Suppose user_history is also an embedding (like last n items?), we just mock it:
-        self.user_history = torch.randn(num_samples, feature_dim)
+        self.user_history = torch.randint(
+            low=0, high=num_items, size=(num_samples, user_history_seqlen)
+        )  # [num_samples, user_history_seqlen] values: 0 to num_items-1
         self.item_features = torch.randn(num_samples, feature_dim)
 
         # Positions (optional) if you have rank positions or something
@@ -132,17 +140,16 @@ def main(args):
     print(f"Running on device: {device}")
 
     # Parameters for TwoTowerBaseRetrieval
-    num_items_to_return: int = 10
-    user_id_hash_size: int = 1024
-    user_id_embedding_dim: int = 32
-    user_features_size: int = 20
-    item_id_hash_size: int = 1024
-    item_id_embedding_dim: int = 32
-    item_features_size: int = 30
+    num_items_to_return: int = args.num_items_to_return
+    user_id_hash_size: int = args.user_id_hash_size
+    user_id_embedding_dim: int = args.embedding_dim
+    user_features_size: int = args.feature_dim
+    item_id_hash_size: int = args.item_id_hash_size
+    item_id_embedding_dim: int = args.embedding_dim
+    item_features_size: int = args.feature_dim
     # tasknum: int = 1 # Not used in this example
-    num_items_in_corpus: int = args.num_items
     mips_module = BaselineMIPSModule(
-        corpus_size=num_items_in_corpus, embedding_dim=item_id_embedding_dim
+        corpus_size=args.num_items, embedding_dim=item_id_embedding_dim
     )
 
     # Instantiate model
@@ -164,6 +171,7 @@ def main(args):
         num_users=args.num_users,
         num_items=args.num_items,
         feature_dim=args.feature_dim,
+        user_history_seqlen=args.user_history_seqlen,
     )
     dataloader = DataLoader(dataset, batch_size=args.batch_size, shuffle=True)
 
@@ -176,20 +184,72 @@ def main(args):
 
 
 if __name__ == "__main__":
-    parser = argparse.ArgumentParser()
-    parser.add_argument("--num_users", type=int, default=100)
-    parser.add_argument("--num_items", type=int, default=200)
-    parser.add_argument("--embedding_dim", type=int, default=32)
+    parser = argparse.ArgumentParser(
+        description="Train two-tower retrieval model"
+    )
+    parser.add_argument(
+        "--num_users",
+        type=int,
+        default=100,
+        help="number of users in the dataset",
+    )
+    parser.add_argument(
+        "--num_items_to_return",
+        type=int,
+        default=10,
+        help="number of items to return in the retrieval task",
+    )
+    parser.add_argument(
+        "--user_id_hash_size",
+        type=int,
+        default=1024,
+        help="embedding table size for user_id",
+    )
+    parser.add_argument(
+        "--item_id_hash_size",
+        type=int,
+        default=1024,
+        help="embedding table size for item_id",
+    )
+    parser.add_argument(
+        "--user_history_seqlen",
+        type=int,
+        default=10,
+        help="length of user history sequence",
+    )
+    parser.add_argument(
+        "--num_items",
+        type=int,
+        default=200,
+        help="number of items in the corpus/dataset",
+    )
+    parser.add_argument(
+        "--embedding_dim",
+        type=int,
+        default=32,
+        help="Dimension of user/item embeddings",
+    )
     parser.add_argument(
         "--feature_dim",
         type=int,
         default=8,
         help="Dim of user_features, item_features, etc.",
     )
-    parser.add_argument("--num_samples", type=int, default=1000)
-    parser.add_argument("--batch_size", type=int, default=32)
-    parser.add_argument("--num_epochs", type=int, default=5)
-    parser.add_argument("--learning_rate", type=float, default=1e-3)
+    parser.add_argument(
+        "--num_samples",
+        type=int,
+        default=1000,
+        help="Number of samples in the dataset",
+    )
+    parser.add_argument(
+        "--batch_size", type=int, default=32, help="Batch size in training loop"
+    )
+    parser.add_argument(
+        "--num_epochs", type=int, default=5, help="Number of epochs to train"
+    )
+    parser.add_argument(
+        "--learning_rate", type=float, default=1e-3, help="Learning rate"
+    )
 
     args = parser.parse_args()
     main(args)
