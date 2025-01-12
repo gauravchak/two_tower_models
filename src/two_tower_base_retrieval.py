@@ -316,7 +316,10 @@ class TwoTowerBaseRetrieval(nn.Module):
         # This label is either 1 or 0 depending on whether the user engaged
         # with this item when recommended. Then the net_user_value is 1 when
         # the user has engaged with the item and 0 otherwise.
-        net_user_value = torch.matmul(labels, self.user_value_weights)  # [B]
+
+        # Reshape labels and weights for proper broadcasting
+        # labels is [B, T] and we want to multiply with weights [T]
+        net_user_value = torch.sum(labels * self.user_value_weights, dim=-1)  # [B]
 
         # Optionally debias the net_user_value by the part explained purely
         # by position. Not implemented in this version. Hence net_user_value
